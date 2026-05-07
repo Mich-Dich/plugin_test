@@ -1,1 +1,4 @@
-# plugin_test
+
+
+
+rm -rf build/; cmake -S . -B build -DCMAKE_BUILD_TYPE=debug && cmake --build build --parallel

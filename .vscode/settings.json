@@ -1,0 +1,19 @@
+{
+  "files.associations": {
+    "*.log": "ansi",
+    "*.glsl": "cpp",
+    "*.hlsl": "cpp",
+    "*.vert": "cpp",
+    "*.frag": "cpp",
+    "*.glt_plugin": "yaml"
+  },
+  "cSpell.words": [
+    "denoising",
+    "hlsl",
+    "instrumentor",
+    "spirv",
+    "swapchain",
+    "tlas",
+    "vk_ray"
+  ]
+}
