@@ -2,6 +2,7 @@
 #pragma once
 
 #include <sys/wait.h>
+#include "util/data_structures/data_types.h"
 
 // FORWARD DECLARATIONS ================================================================================================
 
@@ -47,7 +48,7 @@ namespace GLT::util {
     // @brief Retrieves the current system time, including year, month, day, hour, minute, second, and millisecond.
     //          This function is platform-specific, using `GetLocalTime` on Windows and `gettimeofday` on Linux.
     // @return Returns a `system_time` struct containing the current system time.
-    system_time get_system_time();
+    GLT::system_time get_system_time();
 
 
     // @brief Retrieves the directory containing the currently running executable.

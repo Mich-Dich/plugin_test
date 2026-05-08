@@ -1,6 +1,0 @@
-name: input_test
-version: 1.0.0
-loadPhase: post_engine_init
-dependencies: 
-  - core
-  - window_system

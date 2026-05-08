@@ -11,7 +11,8 @@
                 "PLATFORM_LINUX",
                 "DEBUG",
                 "IMGUI_DEFINE_MATH_OPERATORS",
-                "RENDER_API_VULKAN"
+                "RENDER_API_VULKAN",
+                "PLUGIN_NAME=DEFINED_IN_THE_CMAKE_BUILD_FILE_OF_THIS_PLUGIN"
             ],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c11",

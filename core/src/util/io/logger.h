@@ -1,6 +1,9 @@
 #pragma once
 
-#include "util/pch.h"
+// #include "util/pch.h"
+#include <filesystem>
+#include <thread>
+#include "util/data_structures/data_types.h"
 #include "util/core_config.h"
 
 
@@ -11,23 +14,27 @@ namespace GLT::logger {
 
     // CONSTANTS =======================================================================================================
 
-    // This enables the different log levels (FATAL + ERROR are always on)
-    //  0 = FATAL + ERROR
-    //  1 = FATAL + ERROR + WARN
-    //  2 = FATAL + ERROR + WARN + INFO
-    //  3 = FATAL + ERROR + WARN + INFO + DEBUG
-    //  4 = FATAL + ERROR + WARN + INFO + DEBUG + TRACE
-    #ifdef DEBUG
-        #define LOG_LEVEL_ENABLED           			4
-    #else
-        #define LOG_LEVEL_ENABLED           			2
-    #endif
-
-    #ifndef FILE_LOG_LEVEL_ENABLED
-        #define FILE_LOG_LEVEL_ENABLED LOG_LEVEL_ENABLED
-    #endif
-
     // MACROS ==========================================================================================================
+    
+    #ifndef LOG_LEVEL_ENABLED
+    
+        #ifdef DEBUG
+            #define LOG_LEVEL_ENABLED_DEFAULT               6
+        #else
+            #define LOG_LEVEL_ENABLED_DEFAULT           	3
+        #endif
+
+        // This enables the different log levels
+        //  0 =             disabled
+        //  1 = FATAL
+        //  2 = FATAL + ERROR
+        //  3 = FATAL + ERROR + WARN
+        //  4 = FATAL + ERROR + WARN + INFO
+        //  5 = FATAL + ERROR + WARN + INFO + DEBUG
+        //  6 = FATAL + ERROR + WARN + INFO + DEBUG + TRACE
+        #define LOG_LEVEL_ENABLED  LOG_LEVEL_ENABLED_DEFAULT
+
+    #endif
 
     #undef ERROR
 
@@ -50,107 +57,55 @@ namespace GLT::logger {
         fatal
     };
 
+    using init_func = bool (*)(const std::string& format, bool log_to_console, const std::filesystem::path& log_dir, const std::string& main_log_file_name, bool use_append_mode);
+    using shutdown_func = void (*)();
+    using log_msg_internal_func = void (*)(severity msg_sev, const char* file_name, const char* function_name, int line, std::thread::id thread_id, std::string message);
+    using get_log_file_location_func = std::filesystem::path (*)();
+    using set_format_func = void (*)(const std::string& new_format);
+    using use_previous_format_func = void (*)();
+    using get_format_func = const std::string (*)();
+    using set_buffer_threshold_func = void (*)(severity new_threshold);
+    using set_buffer_size_func = void (*)(size_t new_size);
+    using register_label_func = void (*)(const std::string& thread_label, std::thread::id thread_id);
+    using unregister_label_func = void (*)(std::thread::id thread_id);
+
+    struct logger_functions {
+        init_func                  init;
+        shutdown_func              shutdown;
+        log_msg_internal_func      log_msg_internal;
+        get_log_file_location_func get_log_file_location;
+        set_format_func            set_format;
+        use_previous_format_func   use_previous_format;
+        get_format_func            get_format;
+        set_buffer_threshold_func  set_buffer_threshold;
+        set_buffer_size_func       set_buffer_size;
+        register_label_func        register_label_for_thread;
+        unregister_label_func      unregister_label_for_thread;
+    };
+
     // STATIC VARIABLES ================================================================================================
 
     // FUNCTION DECLARATION ============================================================================================
 
+    // --- installation function ------------------------------------------------
+    // Call once from the plugin to install the full logger backend.
+    // Must be called before any logging calls (typically in on_load() of the logger plugin).
+    void install_logger_functions(const logger_functions& funcs);
 
-    // Initialize the logging system
-    // @param format The initial log message format
-    // @param log_to_console should the log message be written to std::cout?
-    // @param log_dir the directory that will contain all log files
-    // @ main_log_file_name name of the central log_file (the thread that runs logger::init())
-    // @param use_append_mode Should the system write over the existing log file or append to it
-    bool init(const std::string& format, const bool log_to_console = false, const std::filesystem::path log_dir = "./logs", const std::string& main_log_file_name = "general.log", const bool use_append_mode = false);
-
-
-    // Shuts down the logging subsystem: stops the worker thread, drains and processes
-    // any remaining queued log messages, flushes buffered messages to the main log file,
-    // and marks the logger as uninitialized.
-    // If the logger was not initialized, an error is printed and the program exits immediately.
-    // @return None.
+    // Existing function declarations (remain unchanged)
+    bool init(const std::string& format, bool log_to_console = false, const std::filesystem::path log_dir = "./logs", const std::string& main_log_file_name = "general.log", bool use_append_mode = false);
     void shutdown();
-
-    // Returns the filesystem path to the main log file used by the logger.
-    // @return A std::filesystem::path pointing to the current main log file.
     std::filesystem::path get_log_file_location();
-
-
-    // The format of log-messages can be customized with the following tags
-    // @note to format all following log-messages use: set_format()
-    // @note e.g. set_format("$B[$T] $L [$F] $C$E")
-    //
-    // @param $T time                    hh:mm:ss
-    // @param $H hour                    hh
-    // @param $M minute                  mm
-    // @param $S secund                  ss
-    // @param $J milliseconds            jjj
-    //
-    // @param $N data                    yyyy:mm:dd
-    // @param $Y data year               yyyy
-    // @param $O data month              mm
-    // @param $D data day                dd
-    //
-    // @param $Q thread                  Thread_id: 137575225550656 or a label if provided
-    // @param $F function name           application::main, math::foo
-    // @param $P only function name      main, foo
-    // @param $A file name               /home/workspace/test_cpp/src/main.cpp  /home/workspace/test_cpp/src/project.cpp
-    // @param $I only file name          main.cpp
-    // @param $G line                    1, 42
-    //
-    // @param $L log-level               add used log severity: [TRACE], [DEBUG] ... [FATAL]
-    // @param $X alignment               adds space for "INFO" & "WARN"
-    // @param $B color begin             from here the color begins
-    // @param $E color end               from here the color will be reset
-    // @param $C text                    the message the user wants to print
-    // @param $Z new line                add a new line in the message format
     void set_format(const std::string& new_format);
-
-
-    // Restore the previous log-message format
-    // @note This function swaps the current log-message format with the previously stored backup.
-    // It's useful for reverting to the previous format after temporary changes
     void use_previous_format();
-
-
-    // Returns the current log output format string.
-    // @return A copy of the format string used for log messages.
     const std::string get_format();
-
-
-    // all messages with a lower severity than the provided argument will be buffered
-    // Trace => buffer[]
-    // Debug => buffer[Trace]
-    // Info  => buffer[Trace + Debug]
-    // Warn  => buffer[Trace + Debug + Info]
-    // Error => buffer[Trace + Debug + Info + Warn]     (Error and Fatal will nover be buffered)
-    // Fatal => buffer[Trace + Debug + Info + Warn]     (Error and Fatal will nover be buffered)
-    void set_buffer_threshold(const severity new_threshold);
-
-
-    // set the size of the buffer.
-    // @note for messages that are not directly logged
-    void set_buffer_size(const size_t new_size);
-
-
-    // Registers a label for a specific thread, allowing for easier identification in logs.
-    // If a label is already registered for the given thread ID, it will be overridden with the new label.
-    // @param thread_label The label to be associated with the thread.
-    // @param thread_id The ID of the thread for which the label is being registered.
-    //                  Defaults to the ID of the calling thread if not provided.
+    void set_buffer_threshold(severity new_threshold);
+    void set_buffer_size(size_t new_size);
     void register_label_for_thread(const std::string& thread_label, std::thread::id thread_id = std::this_thread::get_id());
-
-
-    // Unregisters the label for a specific thread, removing its association from the logger.
-    // If no label is registered for the given thread ID, a message will be logged indicating that the operation was ignored.
-    // @param thread_id The ID of the thread for which the label is being unregistered.
-    //                  Defaults to the ID of the calling thread if not provided.
     void unregister_label_for_thread(std::thread::id thread_id = std::this_thread::get_id());
+    void log_msg_internal(severity msg_sev, const char* file_name, const char* function_name, int line, std::thread::id thread_id, std::string message);
 
-
-    // THIS SHOULD NEVER BE DIRECTLY CALLED
-    // @note empty log messages will be ignored
-    void log_msg_internal(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, std::string message);
+    // TEMPLATE DECLARATION ============================================================================================
 
     // Template version that uses std::format for format strings with arguments
     template<typename... Args>
@@ -167,8 +122,6 @@ namespace GLT::logger {
     inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, const char* message) {
         log_msg_internal(msg_sev, file_name, function_name, line, thread_id, std::string(message));
     }
-
-    // TEMPLATE DECLARATION ============================================================================================
 
     // CLASS DECLARATION ===============================================================================================
 
@@ -223,28 +176,38 @@ namespace GLT::logger {
             std::this_thread::get_id(), fmt __VA_OPT__(,) __VA_ARGS__);                                                 \
     }
 
-#define LOG_fatal(fmt, ...)          LOG_Master(fatal, fmt __VA_OPT__(,) __VA_ARGS__)
-#define LOG_error(fmt, ...)          LOG_Master(error, fmt __VA_OPT__(,) __VA_ARGS__)
+#if LOG_LEVEL_ENABLED > 0
+    #define LOG_fatal(fmt, ...)      LOG_Master(fatal, fmt __VA_OPT__(,) __VA_ARGS__)
+#else
+    #define LOG_fatal(fmt, ...)      { }
+#endif
 
-#if FILE_LOG_LEVEL_ENABLED > 0
+#if LOG_LEVEL_ENABLED > 1
+    #define LOG_error(fmt, ...)      LOG_Master(error, fmt __VA_OPT__(,) __VA_ARGS__)
+#else
+    #define LOG_error(fmt, ...)      { }
+#endif
+
+
+#if LOG_LEVEL_ENABLED > 2
     #define LOG_warn(fmt, ...)       LOG_Master(warn, fmt __VA_OPT__(,) __VA_ARGS__)
 #else
     #define LOG_warn(fmt, ...)       { }
 #endif
 
-#if FILE_LOG_LEVEL_ENABLED > 1
+#if LOG_LEVEL_ENABLED > 3
     #define LOG_info(fmt, ...)       LOG_Master(info, fmt __VA_OPT__(,) __VA_ARGS__)
 #else
     #define LOG_info(fmt, ...)       { }
 #endif
 
-#if FILE_LOG_LEVEL_ENABLED > 2
+#if LOG_LEVEL_ENABLED > 4
     #define LOG_debug(fmt, ...)      LOG_Master(debug, fmt __VA_OPT__(,) __VA_ARGS__)
 #else
     #define LOG_debug(fmt, ...)      { }
 #endif
 
-#if FILE_LOG_LEVEL_ENABLED > 3
+#if LOG_LEVEL_ENABLED > 5
     #define LOG_trace(fmt, ...)      LOG_Master(trace, fmt __VA_OPT__(,) __VA_ARGS__)
 #else
     #define LOG_trace(fmt, ...)      { }

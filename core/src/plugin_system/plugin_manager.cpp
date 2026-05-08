@@ -1,5 +1,8 @@
 
 #include "util/pch.h"
+
+#include <dlfcn.h>
+
 #include "plugin_manager.h"
 
 // FORWARD DECLARATIONS ================================================================================================
@@ -9,48 +12,52 @@ namespace GLT::plugin_manager {
 
     // CONSTANTS =======================================================================================================
 
+    #if defined(PLATFORM_LINUX)
+        #define DYNAMIC_LIB_EXTENTION           ".so"
+    #else
+        #define DYNAMIC_LIB_EXTENTION           ".dll"
+    #endif
+
     // MACROS ==========================================================================================================
 
     // TYPES ===========================================================================================================
 
-    // Descriptor that every plugin must export.
-    struct plugin_descriptor {
-        const char*       name;
-        load_phase        phase;
-        int               dependency_count;
-        const char* const *dependency_names; // array of C‑strings, nullptr if zero
-    };
-
     // Internal handle for a loaded plugin.
     struct plugin_handle {
-        std::string              name;
-        std::filesystem::path    path;
-        void*                    module_handle = nullptr;
-        std::shared_ptr<i_plugin>  instance;   // uses custom deleter
-        load_phase               phase;
-        std::vector<std::string> dependencies;
+        std::string                             name;
+        std::filesystem::path                   path;
+        void*                                   module_handle = nullptr;
+        std::shared_ptr<i_plugin>               instance;   // uses custom deleter
+        load_phase                              phase;
+        std::vector<std::string>                dependencies;
     };
+
+
+    // TODO: add descriptive comment
+    struct discovered_info {
+        std::filesystem::path                   path;
+        std::string                             name;
+        load_phase                              phase;
+        std::vector<std::string>                dependencies;
+    };
+    
 
     // C‑style function signatures exported by plugins.
     using create_plugin_func = i_plugin* (*)();
+    
+
+    // TODO: add descriptive comment
     using destroy_plugin_func = void (*)(i_plugin*);
+
+    
     // Optional descriptor function: if present, it's called after dlopen to get metadata.
     using descriptor_func = const plugin_descriptor* (*)();
 
     // STATIC VARIABLES ================================================================================================
 
-    static std::vector<plugin_handle>       s_loaded_plugins;
-    static bool                             s_shutdown = false;
-
-    // Temporary storage for discovery. Each entry holds the path and the descriptor
-    // (copied out of the plugin's memory before dlclose).
-    struct discovered_info {
-        std::filesystem::path               path;
-        std::string                         name;
-        load_phase                          phase;
-        std::vector<std::string>            dependencies;
-    };
-    static std::vector<discovered_info>     s_discovered;
+    static bool                                 s_shutdown = false;
+    static std::vector<plugin_handle>           s_loaded_plugins {};
+    static std::vector<discovered_info>         s_discovered {};
 
     // HELPER FUNCTIONS ===============================================================================================
 
@@ -58,8 +65,8 @@ namespace GLT::plugin_manager {
     static bool load_single(const discovered_info& info) {
 
         // Check if already loaded (by name).
-        auto it = std::find_if(s_loaded_plugins.begin(), s_loaded_plugins.end(),
-            [&](const plugin_handle& h) { return h.name == info.name; });
+        auto it = std::find_if(s_loaded_plugins.begin(), s_loaded_plugins.end(), [&](const plugin_handle& h) { return h.name == info.name; });
+
         if (it != s_loaded_plugins.end()) {
             return true; // already loaded
         }
@@ -117,8 +124,10 @@ namespace GLT::plugin_manager {
         return true;
     }
 
+    
     // Checks if all dependencies (by name) are already loaded.
     static bool dependencies_satisfied(const discovered_info& info) {
+
         for (const auto& dep : info.dependencies) {
             bool found = false;
             for (const auto& loaded : s_loaded_plugins) {
@@ -137,21 +146,26 @@ namespace GLT::plugin_manager {
     // PUBLIC API =====================================================================================================
 
     void discover_plugins(const std::filesystem::path& pluginDir) {
+
         if (!std::filesystem::exists(pluginDir)) return;
-
         s_discovered.clear();
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(pluginDir)) {
 
-        for (const auto& entry : std::filesystem::directory_iterator(pluginDir)) {
             if (!entry.is_regular_file()) continue;
+            
             const auto& path = entry.path();
-            if (path.extension() != ".so") continue;
+            if (path.extension() != DYNAMIC_LIB_EXTENTION) continue;
 
             // Temporarily load the library to get the descriptor.
             void* handle = dlopen(path.c_str(), RTLD_LAZY);
-            if (!handle) continue;
+            if (!handle) {
+                fprintf(stderr, "dlopen failed, %s\n", dlerror());
+                continue;
+            }
 
             auto desc_fn = reinterpret_cast<descriptor_func>(dlsym(handle, "gluttony_descriptor"));
             if (!desc_fn) {
+                fprintf(stderr, "dlsym failed, %s\n", dlerror());
                 dlclose(handle);
                 continue; // descriptor is mandatory
             }
@@ -163,10 +177,11 @@ namespace GLT::plugin_manager {
             }
 
             // Copy out the data before closing the library.
-            discovered_info info;
-            info.path = path;
-            info.name = desc->name ? std::string(desc->name) : path.stem().string();
-            info.phase = desc->phase;
+            discovered_info info {
+                .path = path,
+                .name = desc->name ? std::string(desc->name) : path.stem().string(),
+                .phase = desc->phase,
+            };
             info.dependencies.reserve(desc->dependency_count);
             for (int i = 0; i < desc->dependency_count; ++i) {
                 if (desc->dependency_names && desc->dependency_names[i])
@@ -179,19 +194,20 @@ namespace GLT::plugin_manager {
     }
 
     
-    void load_plugins(load_phase currentPhase) {
+    void load_plugins(const load_phase currentPhase) {
+
         if (s_shutdown) return;
 
         // Filter discovered plugins by phase and not yet loaded.
         std::vector<discovered_info> pending;
-        for (const auto& d : s_discovered) {
-            if (d.phase != currentPhase) continue;
+        for (const auto& plugin : s_discovered) {
+            if (plugin.phase != currentPhase) continue;
             // Check if already loaded (shouldn't be, but safe).
             if (std::any_of(s_loaded_plugins.begin(), s_loaded_plugins.end(),
-                    [&](const plugin_handle& h) { return h.name == d.name; })) {
+                    [&](const plugin_handle& h) { return h.name == plugin.name; })) {
                 continue;
             }
-            pending.push_back(d);
+            pending.push_back(plugin);
         }
 
         // Repeatedly load plugins whose dependencies are satisfied.
@@ -224,6 +240,7 @@ namespace GLT::plugin_manager {
 
 
     void shutdown() {
+
         if (s_shutdown) return;
         s_shutdown = true;
 
@@ -243,6 +260,7 @@ namespace GLT::plugin_manager {
 
 
     std::weak_ptr<i_plugin> get_plugin(const std::string& name) {
+
         for (auto& h : s_loaded_plugins) {
             if (h.name == name && h.instance) {
                 return std::weak_ptr<i_plugin>(h.instance);
