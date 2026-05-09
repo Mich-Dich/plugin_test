@@ -28,16 +28,12 @@
 int MAIN_FUNC {
     
     {
-        // The core version of the logger should save the logger calls in a log-message-buffer variable
-        // until a real logger is bound (plugin),
-        // that logger then is responsible for loading the saved log messages and formatting them.
-        
+        LOG(trace, "First possible point for logging, before the logger plugin was loaded")
         GLT::plugin_manager::discover_plugins(GLT::util::get_executable_path() / "plugin");
         GLT::plugin_manager::load_plugins(GLT::plugin_manager::load_phase::pre_engine_init);
-        // Need to check if a real logger was bound,
-        //     if yes - everything is ok
-        //     if not - frow away the log-message-buffer and unbind the core logger function binding
-        
+        LOG(trace, "Right after loading the logger plugin")
+        // GLT::logger::check_for_logger_override();
+
         GLT::crash_handler::attach();
         GLT::logger::init("[$B$T:$J$E] [$B$L$X $Q - $I:$P:$G$E] $C$Z", true, GLT::util::get_executable_path() / "logs",
             "gluttony.log", true);

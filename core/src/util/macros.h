@@ -35,31 +35,7 @@ namespace GLT {
 
     #if defined(PLATFORM_LINUX)
 
-        #ifdef ENGINE
-            #define API                                 __attribute__((visibility("default")))
-        #else
-            #define API
-        #endif
-
-        #ifdef ENGINE
-            #define API_EDITOR                          __attribute__((visibility("default")))
-        #elif defined(EDITOR)
-            #define API_EDITOR
-        #else
-            #define API_EDITOR
-        #endif
-
-        #ifdef PROJECT
-            #define PROJECT_API                         extern "C" __attribute__((visibility("default")))
-        #else
-            #define PROJECT_API                         extern "C"
-        #endif
-
-        #if defined(ENGINE) || defined(EDITOR)
-            #define USE_IN_EDITOR
-        #else
-            #define USE_IN_EDITOR
-        #endif
+        #define CORE_API                                __attribute__((visibility("default")))
 
         #define DEBUG_BREAK()                           __builtin_trap()
 
@@ -96,7 +72,7 @@ namespace GLT {
         #endif
 
     #elif defined(PLATFORM_WINDOWS)
-        #error Not supported yet (maybe in the future)
+        #error Windows not supported yet (maybe in the future)
     #endif
 
     // copy/move operations --------------------------------------------------------------------------------------------

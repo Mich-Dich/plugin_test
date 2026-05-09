@@ -15,30 +15,17 @@ file(GLOB_RECURSE                               CORE_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
 )
 add_executable(${CORE_NAME}                     ${CORE_SOURCES})
-
-# Platform-specific configurations
-if(UNIX)
-    target_compile_definitions(${CORE_NAME}     PRIVATE PLATFORM_LINUX)
-    target_link_libraries(${CORE_NAME}
-        PRIVATE
-            ${LINUX_SYSTEM_LIBS}
-    )
-elseif(WIN32)
-    target_compile_definitions(${CORE_NAME}     PRIVATE PLATFORM_WINDOWS)
-    target_compile_options(${CORE_NAME}         PRIVATE /bigobj)
-elseif(APPLE)
-    message(FATAL_ERROR "Apple/macOS platform is not supported by this project.")
-endif()
-
+set_target_properties(${CORE_NAME} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY                    "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)
+# For the main executable target (e.g., "Gluttony")
+target_link_options(${CORE_NAME}                PRIVATE -rdynamic)
 target_link_libraries(${CORE_NAME}              PRIVATE
     # glfw_lib
     glm
 )
 target_include_directories(${CORE_NAME}         PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/
-)
-set_target_properties(${CORE_NAME}              PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY                    "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
 )
 
 # Find PCH header if it exists
@@ -55,6 +42,8 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/util/pch.h")
             "$<$<CXX_COMPILER_ID:Clang>:-include${CMAKE_CURRENT_SOURCE_DIR}/src/util/pch.h>"
     )
 endif()
+
+
 
 include(${CMAKE_SOURCE_DIR}/helper.cmake)
 print_source_file_details(

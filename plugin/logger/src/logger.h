@@ -26,7 +26,8 @@ namespace GLT::logger_plugin {
     // @param log_dir the directory that will contain all log files
     // @ main_log_file_name name of the central log_file (the thread that runs logger::init())
     // @param use_append_mode Should the system write over the existing log file or append to it
-    bool init(const std::string& format, const bool log_to_console = false, const std::filesystem::path log_dir = "./logs", const std::string& main_log_file_name = "general.log", const bool use_append_mode = false);
+    bool init(const std::string& format, const bool log_to_console = false, const std::filesystem::path& log_dir = "./logs",
+        const std::string& main_log_file_name = "general.log", const bool use_append_mode = false);
 
 
     // Shuts down the logging subsystem: stops the worker thread, drains and processes

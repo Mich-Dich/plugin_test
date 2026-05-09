@@ -53,6 +53,15 @@ namespace GLT::plugin_manager {
     // Optional descriptor function: if present, it's called after dlopen to get metadata.
     using descriptor_func = const plugin_descriptor* (*)();
 
+
+    enum class plugin_load_error : u8 {
+        none = 0,
+        already_loaded,
+        failed_to_load,
+        failed_to_find_factory_functions,
+        failed_to_create_instance,
+    };
+
     // STATIC VARIABLES ================================================================================================
 
     static bool                                 s_shutdown = false;
@@ -62,21 +71,18 @@ namespace GLT::plugin_manager {
     // HELPER FUNCTIONS ===============================================================================================
 
     // Load a plugin described by `info`, resolve symbols, create instance, call on_load().
-    static bool load_single(const discovered_info& info) {
+    static plugin_load_error load_single(const discovered_info& info) {
 
         // Check if already loaded (by name).
         auto it = std::find_if(s_loaded_plugins.begin(), s_loaded_plugins.end(), [&](const plugin_handle& h) { return h.name == info.name; });
-
         if (it != s_loaded_plugins.end()) {
-            return true; // already loaded
+            return plugin_load_error::already_loaded;
         }
 
-        // Open library.
-        void* handle = dlopen(info.path.c_str(), RTLD_NOW);
+        void* handle = dlopen(info.path.c_str(), RTLD_NOW);             // Open library.
         if (!handle) {
-            // Log error and fail.
-            fprintf(stderr, "Plugin load failed: %s\n", dlerror());
-            return false;
+            fprintf(stderr, "Plugin load failed: %s\n", dlerror());     // Log error and fail.
+            return plugin_load_error::failed_to_load;
         }
 
         // Get factory functions.
@@ -85,14 +91,13 @@ namespace GLT::plugin_manager {
         if (!create || !destroy) {
             fprintf(stderr, "Plugin '%s' missing required symbols.\n", info.name.c_str());
             dlclose(handle);
-            return false;
+            return plugin_load_error::failed_to_find_factory_functions;
         }
 
-        // Create the plugin instance.
-        i_plugin* raw_instance = create();
+        i_plugin* raw_instance = create();                              // Create the plugin instance.
         if (!raw_instance) {
             dlclose(handle);
-            return false;
+            return plugin_load_error::failed_to_create_instance;
         }
 
         // Wrap in shared_ptr with a custom deleter that calls destroy_plugin,
@@ -106,13 +111,10 @@ namespace GLT::plugin_manager {
             destroy_plugin_func destroy_function;
             void* handle;
         };
+
         auto instance = std::shared_ptr<i_plugin>(raw_instance, deleter{ destroy, handle });
-
-        // Call the startup hook.
-        instance->on_load();
-
-        // Store the handle.
-        s_loaded_plugins.push_back(plugin_handle{
+        instance->on_load();                                            // Call the startup hook.
+        s_loaded_plugins.push_back(plugin_handle{                       // Store the handle.
             info.name,
             info.path,
             handle,
@@ -121,7 +123,7 @@ namespace GLT::plugin_manager {
             info.dependencies
         });
 
-        return true;
+        return plugin_load_error::none;
     }
 
     
@@ -216,12 +218,15 @@ namespace GLT::plugin_manager {
             progress = false;
             for (auto it = pending.begin(); it != pending.end(); ) {
                 if (dependencies_satisfied(*it)) {
-                    if (load_single(*it)) {
+                    plugin_load_error err = load_single(*it);
+                    if (err == plugin_load_error::none) {
                         it = pending.erase(it);
-                        progress = true;
+                        progress = true;       // we made progress, keep trying others
                     } else {
-                        // load failed, remove from pending to avoid infinite loop, but log.
-                        ++it;
+                        // Permanent failure – remove from list, log, and continue.
+                        LOG(error, "Failed to load plugin '{}': {}", it->name, static_cast<int>(err));
+                        it = pending.erase(it);
+                        // Do NOT set progress = true – the error doesn't satisfy new dependencies.
                     }
                 } else {
                     ++it;
@@ -232,8 +237,7 @@ namespace GLT::plugin_manager {
         if (!pending.empty()) {
             // Some plugins could not be loaded due to missing dependencies.
             for (const auto& p : pending) {
-                fprintf(stderr, "Plugin '%s' could not be loaded: unsatisfied dependencies or load error.\n",
-                        p.name.c_str());
+                fprintf(stderr, "Plugin '%s' could not be loaded: unsatisfied dependencies or load error.\n", p.name.c_str());
             }
         }
     }

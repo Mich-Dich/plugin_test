@@ -3,6 +3,8 @@
 // #include "util/pch.h"
 #include <filesystem>
 #include <thread>
+
+#include "util/macros.h"
 #include "util/data_structures/data_types.h"
 #include "util/core_config.h"
 
@@ -15,6 +17,8 @@ namespace GLT::logger {
     // CONSTANTS =======================================================================================================
 
     // MACROS ==========================================================================================================
+    
+    #define LOG_LEVEL_ENABLED                               6
     
     #ifndef LOG_LEVEL_ENABLED
     
@@ -90,10 +94,11 @@ namespace GLT::logger {
     // --- installation function ------------------------------------------------
     // Call once from the plugin to install the full logger backend.
     // Must be called before any logging calls (typically in on_load() of the logger plugin).
-    void install_logger_functions(const logger_functions& funcs);
+    __attribute__((visibility("default"))) void install_logger_functions(const logger_functions& funcs);
 
     // Existing function declarations (remain unchanged)
-    bool init(const std::string& format, bool log_to_console = false, const std::filesystem::path log_dir = "./logs", const std::string& main_log_file_name = "general.log", bool use_append_mode = false);
+    bool init(const std::string& format, bool log_to_console = false, const std::filesystem::path& log_dir = "./logs", 
+        const std::string& main_log_file_name = "general.log", bool use_append_mode = false);
     void shutdown();
     std::filesystem::path get_log_file_location();
     void set_format(const std::string& new_format);
@@ -109,17 +114,23 @@ namespace GLT::logger {
 
     // Template version that uses std::format for format strings with arguments
     template<typename... Args>
-    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, std::format_string<Args...> fmt, Args&&... args) {
+    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, 
+        std::format_string<Args...> fmt, Args&&... args) {
+
         std::string message = std::format(fmt, std::forward<Args>(args)...);
         log_msg_internal(msg_sev, file_name, function_name, line, thread_id, std::move(message));
     }
 
     // Overload for plain strings (for backward compatibility)
-    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, const std::string& message) {
+    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, 
+        const std::string& message) {
+
         log_msg_internal(msg_sev, file_name, function_name, line, thread_id, message);
     }
 
-    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, const char* message) {
+    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, 
+        const char* message) {
+            
         log_msg_internal(msg_sev, file_name, function_name, line, thread_id, std::string(message));
     }
 

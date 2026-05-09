@@ -17,24 +17,23 @@ namespace GLT::logger {
     // STATIC VARIABLES ================================================================================================
 
     // ---------- default (fallback) implementations --------------------------------
-    static bool default_init(const std::string& /*format*/, bool /*log_to_console*/,
-                             const std::filesystem::path& /*log_dir*/,
-                             const std::string& /*main_log_file_name*/,
-                             bool /*use_append_mode*/) {
-        // minimal: do nothing, just return success
-        return true;
+    static bool default_init(const std::string& /*format*/, bool /*log_to_console*/, const std::filesystem::path& /*log_dir*/,
+        const std::string& /*main_log_file_name*/, bool /*use_append_mode*/) {
+
+        return true;        // minimal: do nothing, just return success
     }
 
     static void default_shutdown() {
         // nothing
     }
 
-    static void default_log_msg_internal(severity msg_sev, const char* /*file_name*/,
-                                         const char* /*function_name*/, int /*line*/,
-                                         std::thread::id /*thread_id*/, std::string message) {
+    static void default_log_msg_internal(severity msg_sev, const char* /*file_name*/, const char* /*function_name*/, int /*line*/, 
+        std::thread::id /*thread_id*/, std::string message) {
+
         // fallback: write directly to stderr with a simple layout
         static const char* sev_names[] = {"TRACE","DEBUG","INFO","WARN","ERROR","FATAL"};
-        std::cerr << "[" << sev_names[static_cast<int>(msg_sev)] << "] " << message << std::endl;
+        
+        fprintf(stdout, "[%s] %s\n", sev_names[static_cast<int>(msg_sev)], message.c_str());
     }
 
     static std::filesystem::path default_get_log_file_location() {
@@ -70,11 +69,11 @@ namespace GLT::logger {
 
     // FUNCTION IMPLEMENTATION =========================================================================================
 
-    void install_plugin_functions(const logger_functions& funcs) {
+    void install_logger_functions(const logger_functions& funcs) {
         g_logger = funcs;   // safe as long as called before any logging threads run
     }
 
-    bool init(const std::string& format, bool log_to_console, const std::filesystem::path log_dir, const std::string& main_log_file_name, bool use_append_mode) {
+    bool init(const std::string& format, bool log_to_console, const std::filesystem::path& log_dir, const std::string& main_log_file_name, bool use_append_mode) {
         return g_logger.init(format, log_to_console, log_dir, main_log_file_name, use_append_mode);
     }
 

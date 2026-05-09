@@ -10,13 +10,11 @@
 #include <thread>
 #include <atomic>
 #include <condition_variable>
+#include <iomanip>
 
 #include <util/system.h>
 
-#include <iomanip>
-
 #include "logger.h"
-
 
 // FORWARD DECLARATIONS ================================================================================================
 
@@ -38,7 +36,7 @@ namespace GLT::logger_plugin {
     #if defined(DEBUG)
         #define QUEUE_MAX_SIZE                                  0               // TODO: flush messages directly in debug (set to 0)
     #else
-        #define QUEUE_MAX_SIZE                                  0
+        #define QUEUE_MAX_SIZE                                  16000
     #endif
 
     #define OPEN_FILE                                           s_main_file = std::ofstream(s_main_log_file_path, std::ios::app);           \
@@ -134,7 +132,7 @@ namespace GLT::logger_plugin {
 
     // FUNCTION IMPLEMENTATION =========================================================================================
 
-    bool init(const std::string& format, const bool log_to_console, const std::filesystem::path log_dir, const std::string& main_log_file_name, const bool use_append_mode) {
+    bool init(const std::string& format, const bool log_to_console, const std::filesystem::path& log_dir, const std::string& main_log_file_name, const bool use_append_mode) {
 
         if (s_is_init) {
             std::cerr << "Tried to init logger system multiple times" << std::endl;

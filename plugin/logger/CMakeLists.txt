@@ -22,6 +22,7 @@ target_include_directories(${PLUGIN_NAME}       PRIVATE
 )
 set_target_properties(${PLUGIN_NAME}            PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY                    "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/plugin/${PLUGIN_NAME}"
+    OBJECT_OUTPUT_DIRECTORY                     "${CMAKE_BINARY_DIR}/bin-int/$<CONFIG>/plugin/${PLUGIN_NAME}"
 )
 target_link_options(${PLUGIN_NAME}              PRIVATE -rdynamic)
 
