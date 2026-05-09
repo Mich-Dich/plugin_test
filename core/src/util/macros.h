@@ -144,6 +144,8 @@ namespace GLT {
 
     #define BIND_FUNCTION(x)								std::bind(&x, this, std::placeholders::_1)
 
+    #define ARRAY_SIZE(arr)                                 (sizeof(arr) / sizeof((arr)[0]))
+
     // TYPES ===========================================================================================================
 
     // STATIC VARIABLES ================================================================================================

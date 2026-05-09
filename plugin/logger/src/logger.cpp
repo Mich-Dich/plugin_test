@@ -23,6 +23,17 @@ namespace GLT::logger_plugin {
 
     // CONSTANTS =======================================================================================================
 
+    const std::string                                           severity_names[] = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
+    const std::string                                           console_rest = "\x1b[0m";
+    const std::string                                           console_color_table[] = {
+        "\x1b[38;5;246m",                                           // trace: Gray
+        "\x1b[94m",                                                 // debug: Blue
+        "\x1b[92m",                                                 // info: Green
+        "\x1b[33m",                                                 // warn: Yellow
+        "\x1b[31m",                                                 // error: Red
+        "\x1b[41m\x1b[30m",                                         // fatal: Red Background
+    };
+
     // MACROS ==========================================================================================================
 
     #define SETW(width)                                         std::setw(width) << std::setfill('0')
@@ -57,39 +68,13 @@ namespace GLT::logger_plugin {
     static bool                                                 s_write_log_to_console = false;
     static std::string                                          s_format_current = "";
     static std::string                                          s_format_prev = "";
-
     static GLT::logger::severity                                s_severity_level_buffering_threshold = GLT::logger::severity::trace;
     static size_t                                               s_buffer_size = 1024;
     static std::string                                          s_buffered_messages{};
-
-    const std::string                                           severity_names[] = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
-    const std::string                                           console_rest = "\x1b[0m";
-    const std::string                                           console_color_table[] = {
-        "\x1b[38;5;246m",                                           // trace: Gray
-        "\x1b[94m",                                                 // debug: Blue
-        "\x1b[92m",                                                 // info: Green
-        "\x1b[33m",                                                 // warn: Yellow
-        "\x1b[31m",                                                 // error: Red
-        "\x1b[41m\x1b[30m",                                         // fatal: Red Background
-    };
-
     static std::filesystem::path                                s_main_log_dir = "";
     static std::filesystem::path                                s_main_log_file_path = "";
     static std::ofstream                                        s_main_file{};
-
-    struct message_format {
-        message_format(const GLT::logger::severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, std::string message)
-            : msg_sev(msg_sev), file_name(file_name), function_name(function_name), line(line), thread_id(thread_id), message(std::move(message)) {};
-
-        const GLT::logger::severity                             msg_sev;
-        const char*                                             file_name;
-        const char*                                             function_name;
-        const int                                               line;
-        const std::thread::id                                   thread_id;
-        const std::string                                       message;
-    };
-
-    static std::queue<message_format>                           s_log_queue{};
+    static std::queue<GLT::logger::message_data>                s_log_queue{};
     static std::unordered_map<std::thread::id, std::string>     s_thread_labels{};
     static std::mutex                                           s_queue_mutex{};
     static std::mutex                                           s_general_mutex{};
@@ -127,7 +112,7 @@ namespace GLT::logger_plugin {
 
     // FUNCTION DECLARATION ============================================================================================
 
-    void process_log_message(const message_format&& message);
+    void process_log_message(const GLT::logger::message_data&& message);
     void process_queue();
 
     // FUNCTION IMPLEMENTATION =========================================================================================
@@ -136,26 +121,25 @@ namespace GLT::logger_plugin {
 
         if (s_is_init) {
             std::cerr << "Tried to init logger system multiple times" << std::endl;
-            std::quick_exit(1);
+            return false;
         }
 
         s_format_current = format;
         s_format_prev = format;
         s_write_log_to_console = log_to_console;
-
         s_main_log_dir = std::filesystem::absolute(log_dir);
         s_main_log_file_path = s_main_log_dir / main_log_file_name;
 
         if (!std::filesystem::is_directory(s_main_log_dir))
-            if (!std::filesystem::create_directory(s_main_log_dir)) {
+            if (!std::filesystem::create_directories(s_main_log_dir)) {
                 std::cerr << "Failed to create the directory for log files" << std::endl;
-                std::quick_exit(1);
+                return false;
             }
 
         s_main_file = std::ofstream(s_main_log_file_path, (use_append_mode) ? std::ios::app : std::ios::out);
         if (!s_main_file.is_open()) {
             std::cerr << "Failed to open main log file path: [" << s_main_log_file_path.string() << "]" << std::endl;
-            std::quick_exit(1);
+            return false;
         }
         s_main_file << "\n================================================================================================\n";
         auto now = std::time(nullptr);
@@ -165,11 +149,8 @@ namespace GLT::logger_plugin {
         CLOSE_FILE
 
         s_buffered_messages.reserve(s_buffer_size);
-
         s_is_init = true;
-
         s_worker_thread = std::thread(&process_queue);                                                        // start after inital write to avoid using mutex
-
         return true;
     }
 
@@ -187,14 +168,14 @@ namespace GLT::logger_plugin {
             s_worker_thread.join();
 
         // Process any remaining messages in the queue after worker thread has stopped
-        std::queue<message_format> remaining_messages;
+        std::queue<GLT::logger::message_data> remaining_messages;
         {
             std::lock_guard<std::mutex> lock(s_queue_mutex);
             remaining_messages = std::move(s_log_queue); // Take all remaining messages
         }
 
         while (!remaining_messages.empty()) {
-            message_format msg = std::move(remaining_messages.front());
+            GLT::logger::message_data msg = std::move(remaining_messages.front());
             remaining_messages.pop();
             process_log_message(std::move(msg)); // Process each message
         }
@@ -228,7 +209,7 @@ namespace GLT::logger_plugin {
         }
 
         std::lock_guard<std::mutex> lock(s_queue_mutex);
-        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_UPDATE_FORMAT, 0, std::thread::id(), new_format);
+        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_UPDATE_FORMAT, 0, GLT_MODULE_NAME, std::thread::id(), new_format);
         s_cv.notify_all();
     }
 
@@ -236,7 +217,7 @@ namespace GLT::logger_plugin {
     void use_previous_format() {
 
         std::lock_guard<std::mutex> lock(s_queue_mutex);
-        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_REVERSE_FORMAT, 0, std::thread::id(), "");
+        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_REVERSE_FORMAT, 0, GLT_MODULE_NAME, std::thread::id(), "");
         s_cv.notify_all();
     }
 
@@ -247,7 +228,7 @@ namespace GLT::logger_plugin {
     void register_label_for_thread(const std::string& thread_label, std::thread::id thread_id) {
 
         std::lock_guard<std::mutex> lock(s_queue_mutex);
-        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_REGISTER_THREAD_LABEL, 0, thread_id, thread_label);
+        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_REGISTER_THREAD_LABEL, 0, GLT_MODULE_NAME, thread_id, thread_label);
         s_cv.notify_all();
     }
 
@@ -263,7 +244,7 @@ namespace GLT::logger_plugin {
         }
 
         std::lock_guard<std::mutex> lock(s_queue_mutex);
-        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_UNREGISTER_THREAD_LABEL, 0, thread_id, std::move(loc_msg));
+        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_UNREGISTER_THREAD_LABEL, 0, GLT_MODULE_NAME, thread_id, std::move(loc_msg));
         s_cv.notify_all();
     }
 
@@ -271,7 +252,7 @@ namespace GLT::logger_plugin {
     void set_buffer_threshold(const GLT::logger::severity new_threshold) {
 
         std::lock_guard<std::mutex> lock(s_queue_mutex);
-        s_log_queue.emplace(new_threshold, "", LOGGER_CHANGE_THRESHOLD, 0, std::thread::id(),
+        s_log_queue.emplace(new_threshold, "", LOGGER_CHANGE_THRESHOLD, 0, GLT_MODULE_NAME, std::thread::id(),
             std::format("[LOGGER] Changed buffering threshold to [{}]", severity_names[static_cast<u8>(new_threshold)]));
         s_cv.notify_all();
     }
@@ -280,8 +261,8 @@ namespace GLT::logger_plugin {
     void set_buffer_size(const size_t new_size) {
 
         std::lock_guard<std::mutex> lock(s_queue_mutex);
-        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_CHANGE_BUFFER_SIZE, static_cast<int>(new_size), std::thread::id(),
-                          std::format("[LOGGER] Changed buffer size to [{}]", new_size));
+        s_log_queue.emplace(GLT::logger::severity::trace, "", LOGGER_CHANGE_BUFFER_SIZE, static_cast<int>(new_size), GLT_MODULE_NAME, 
+            std::thread::id(), std::format("[LOGGER] Changed buffer size to [{}]", new_size));
         s_cv.notify_all();
     }
 
@@ -297,7 +278,7 @@ namespace GLT::logger_plugin {
             if (s_stop) break;
 
 
-            std::queue<message_format> local_queue;
+            std::queue<GLT::logger::message_data> local_queue;
             while (!s_log_queue.empty()) {                                    // Move all current messages to a local queue
                 local_queue.push(std::move(s_log_queue.front()));
                 s_log_queue.pop();
@@ -306,7 +287,7 @@ namespace GLT::logger_plugin {
 
             // Process each message from the local queue
             while (!local_queue.empty()) {
-                message_format message = std::move(local_queue.front());
+                GLT::logger::message_data message = std::move(local_queue.front());
                 local_queue.pop();
                 // Process control messages and log messages
 
@@ -381,20 +362,21 @@ namespace GLT::logger_plugin {
 
     // handle message --------------------------------------------------------------------------------------------------
 
-    void log_msg_internal(const GLT::logger::severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, std::string message) {
+    void log_msg_internal(const GLT::logger::severity msg_sev, const char* file_name, const char* function_name, const int line, 
+        const char* module_name, std::thread::id thread_id, std::string message) {
 
         if (message.empty())
             return;
 
         std::lock_guard<std::mutex> lock(s_queue_mutex);
-        s_log_queue.emplace(msg_sev, file_name, function_name, line, thread_id, std::move(message));
+        s_log_queue.emplace(msg_sev, file_name, function_name, line, module_name, thread_id, std::move(message));
 
         if (static_cast<u8>(msg_sev) >= static_cast<u8>(s_severity_level_buffering_threshold) || s_log_queue.size() >= QUEUE_MAX_SIZE)           // check if thread should be notified
             s_cv.notify_all();
     }
 
 
-    void process_log_message(const message_format&& message) {
+    void process_log_message(const GLT::logger::message_data&& message) {
 
     #define SHORTEN_FUNC_NAME(text)                                 (strstr(text, "::") ? strstr(text, "::") + 2 : text)
 
@@ -415,23 +397,24 @@ namespace GLT::logger_plugin {
                 switch (format_command) {
 
                 // ------------------------ Basic info ------------------------
-                case 'B': formatted_message.append(console_color_table[static_cast<u8>(message.msg_sev)]); break;                     // Color start
-                case 'E': formatted_message.append(console_rest); break;                                                             // Color end
-                case 'C': formatted_message.append(message.message); break;                                                          // input text (message)
-                case 'L': formatted_message.append(severity_names[static_cast<u8>(message.msg_sev)]); break;                         // log severity
+                case 'B': formatted_message.append(console_color_table[static_cast<u8>(message.msg_sev)]); break;                   // Color start
+                case 'E': formatted_message.append(console_rest); break;                                                            // Color end
+                case 'C': formatted_message.append(message.message); break;                                                         // input text (message)
+                case 'L': formatted_message.append(severity_names[static_cast<u8>(message.msg_sev)]); break;                        // log severity
                 case 'X': if(message.msg_sev == GLT::logger::severity::info || message.msg_sev == GLT::logger::severity::warn) { formatted_message.append(" "); } break; // alignment
-                case 'Z': formatted_message.append("\n"); break;                                                                     // line break
+                case 'Z': formatted_message.append("\n"); break;                                                                    // line break
 
                 // ------------------------ Basic info ------------------------
                 case 'Q':   if (s_thread_labels.find(message.thread_id) != s_thread_labels.end()) {
                                 formatted_message.append(s_thread_labels[message.thread_id]);
                             } else {
                                 formatted_message.append(thread_id_to_string(message.thread_id));
-                            } break;                                                                                                 // Thread id or associated label
-                case 'F': formatted_message.append(message.function_name); break;                                                    // function name
+                            } break;                                                                                                // Thread id or associated label
+                case 'F': formatted_message.append(message.function_name); break;                                                   // function name
+                case 'R': formatted_message.append(message.module_name); break;                                                     // function name
                 case 'P': formatted_message.append(SHORTEN_FUNC_NAME(message.function_name)); break;                                // short function name
-                case 'A': formatted_message.append(message.file_name); break;                                                        // file name
-                case 'I': formatted_message.append(get_filename(message.file_name)); break;                                          // short file name
+                case 'A': formatted_message.append(message.file_name); break;                                                       // file name
+                case 'I': formatted_message.append(get_filename(message.file_name)); break;                                         // short file name
                 case 'G': formatted_message.append(std::to_string(message.line)); break;                                            // line
 
                 // ------------------------ time ------------------------

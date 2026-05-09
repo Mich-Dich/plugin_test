@@ -15,17 +15,17 @@ file(GLOB_RECURSE                               CORE_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
 )
 add_executable(${CORE_NAME}                     ${CORE_SOURCES})
+target_compile_definitions(${CORE_NAME}         PRIVATE GLT_MODULE_NAME="${CORE_NAME}")
+target_include_directories(${CORE_NAME}         PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/
+)
 set_target_properties(${CORE_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY                    "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
 )
 # For the main executable target (e.g., "Gluttony")
 target_link_options(${CORE_NAME}                PRIVATE -rdynamic)
 target_link_libraries(${CORE_NAME}              PRIVATE
-    # glfw_lib
     glm
-)
-target_include_directories(${CORE_NAME}         PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/
 )
 
 # Find PCH header if it exists

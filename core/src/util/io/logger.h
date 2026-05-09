@@ -3,6 +3,7 @@
 // #include "util/pch.h"
 #include <filesystem>
 #include <thread>
+#include <vector>
 
 #include "util/macros.h"
 #include "util/data_structures/data_types.h"
@@ -42,6 +43,10 @@ namespace GLT::logger {
 
     #undef ERROR
 
+    #ifndef GLT_MODULE_NAME
+        #define GLT_MODULE_NAME "Unknown"
+    #endif
+
     // TYPES ===========================================================================================================
 
     // Define the severity levels for logging
@@ -61,9 +66,28 @@ namespace GLT::logger {
         fatal
     };
 
-    using init_func = bool (*)(const std::string& format, bool log_to_console, const std::filesystem::path& log_dir, const std::string& main_log_file_name, bool use_append_mode);
+    
+    struct message_data {
+        const GLT::logger::severity                             msg_sev;
+        const char*                                             file_name;
+        const char*                                             function_name;
+        const int                                               line;
+        const char*                                             module_name;
+        const std::thread::id                                   thread_id;
+        const std::string                                       message;
+        
+        message_data(const GLT::logger::severity msg_sev, const char* file_name, const char* function_name, const int line, 
+            const char* module_name, std::thread::id thread_id, std::string message)
+        : msg_sev(msg_sev), file_name(file_name), function_name(function_name), line(line), module_name(module_name), 
+            thread_id(thread_id), message(std::move(message)) {};
+    };
+
+
+    using init_func = bool (*)(const std::string& format, bool log_to_console, const std::filesystem::path& log_dir, 
+        const std::string& main_log_file_name, bool use_append_mode);
     using shutdown_func = void (*)();
-    using log_msg_internal_func = void (*)(severity msg_sev, const char* file_name, const char* function_name, int line, std::thread::id thread_id, std::string message);
+    using log_msg_internal_func = void (*)(severity msg_sev, const char* file_name, const char* function_name, int line, const char* module_name,
+        std::thread::id thread_id, std::string message);
     using get_log_file_location_func = std::filesystem::path (*)();
     using set_format_func = void (*)(const std::string& new_format);
     using use_previous_format_func = void (*)();
@@ -94,7 +118,9 @@ namespace GLT::logger {
     // --- installation function ------------------------------------------------
     // Call once from the plugin to install the full logger backend.
     // Must be called before any logging calls (typically in on_load() of the logger plugin).
-    __attribute__((visibility("default"))) void install_logger_functions(const logger_functions& funcs);
+    CORE_API void install_logger_functions(const logger_functions& funcs);
+
+    CORE_API std::vector<GLT::logger::message_data> drain_log_buffer(const bool disable_buffer = true);
 
     // Existing function declarations (remain unchanged)
     bool init(const std::string& format, bool log_to_console = false, const std::filesystem::path& log_dir = "./logs", 
@@ -108,30 +134,31 @@ namespace GLT::logger {
     void set_buffer_size(size_t new_size);
     void register_label_for_thread(const std::string& thread_label, std::thread::id thread_id = std::this_thread::get_id());
     void unregister_label_for_thread(std::thread::id thread_id = std::this_thread::get_id());
-    void log_msg_internal(severity msg_sev, const char* file_name, const char* function_name, int line, std::thread::id thread_id, std::string message);
+    void log_msg_internal(severity msg_sev, const char* file_name, const char* function_name, int line, const char* module_name,
+        std::thread::id thread_id, std::string message);
 
     // TEMPLATE DECLARATION ============================================================================================
 
     // Template version that uses std::format for format strings with arguments
     template<typename... Args>
-    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, 
-        std::format_string<Args...> fmt, Args&&... args) {
+    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, const char* module_name,
+        std::thread::id thread_id, std::format_string<Args...> fmt, Args&&... args) {
 
         std::string message = std::format(fmt, std::forward<Args>(args)...);
-        log_msg_internal(msg_sev, file_name, function_name, line, thread_id, std::move(message));
+        log_msg_internal(msg_sev, file_name, function_name, line, module_name, thread_id, std::move(message));
     }
 
     // Overload for plain strings (for backward compatibility)
-    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, 
-        const std::string& message) {
+    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, const char* module_name,
+        std::thread::id thread_id, const std::string& message) {
 
-        log_msg_internal(msg_sev, file_name, function_name, line, thread_id, message);
+        log_msg_internal(msg_sev, file_name, function_name, line, module_name, thread_id, message);
     }
 
-    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, 
-        const char* message) {
+    inline void log_msg(const severity msg_sev, const char* file_name, const char* function_name, const int line, const char* module_name,
+        std::thread::id thread_id, const char* message) {
             
-        log_msg_internal(msg_sev, file_name, function_name, line, thread_id, std::string(message));
+        log_msg_internal(msg_sev, file_name, function_name, line, module_name, thread_id, std::string(message));
     }
 
     // CLASS DECLARATION ===============================================================================================
@@ -145,21 +172,24 @@ namespace GLT::logger {
 
             // Constructs a logged_exception from source location, thread id and a string message.
             template<typename... Args>
-			explicit logged_exception(const char* file, const char* function, const int line, std::thread::id thread_id, std::format_string<Args...> fmt, Args&&... args)
-                : m_msg(std::format(fmt, std::forward<Args>(args)...)) {
-                logger::log_msg_internal(logger::severity::error, file, function, line, thread_id, m_msg);
+			explicit logged_exception(const char* file, const char* function, const int line, const char* module_name,
+                std::thread::id thread_id, std::format_string<Args...> fmt, Args&&... args)
+            : m_msg(std::format(fmt, std::forward<Args>(args)...)) {
+                logger::log_msg_internal(logger::severity::error, file, function, line, module_name, thread_id, m_msg);
             }
 
             // Overload for plain string
-            explicit logged_exception(const char* file, const char* function, const int line, std::thread::id thread_id, const std::string& message)
-                : m_msg(message) {
-                logger::log_msg_internal(logger::severity::error, file, function, line, thread_id, m_msg);
+            explicit logged_exception(const char* file, const char* function, const int line, const char* module_name,
+                std::thread::id thread_id, const std::string& message)
+            : m_msg(message) {
+                logger::log_msg_internal(logger::severity::error, file, function, line, module_name, thread_id, m_msg);
             }
 
             // Overload for C-string
-            explicit logged_exception(const char* file, const char* function, const int line, std::thread::id thread_id, const char* message)
-                : m_msg(message) {
-                logger::log_msg_internal(logger::severity::error, file, function, line, thread_id, m_msg);
+            explicit logged_exception(const char* file, const char* function, const int line, const char* module_name,
+                std::thread::id thread_id, const char* message)
+            : m_msg(message) {
+                logger::log_msg_internal(logger::severity::error, file, function, line, module_name, thread_id, m_msg);
             }
 
             // Returns a C-string describing the exception. Marked noexcept to match std::exception::what().
@@ -184,7 +214,7 @@ namespace GLT::logger {
 #define LOG_Master(severity_level, fmt, ...)                                                                            \
     {                                                                                                                   \
         GLT::logger::log_msg(GLT::logger::severity::severity_level, __FILE__, __FUNCTION__, __LINE__,                   \
-            std::this_thread::get_id(), fmt __VA_OPT__(,) __VA_ARGS__);                                                 \
+            GLT_MODULE_NAME, std::this_thread::get_id(), fmt __VA_OPT__(,) __VA_ARGS__);                                \
     }
 
 #if LOG_LEVEL_ENABLED > 0
@@ -234,12 +264,15 @@ namespace GLT::logger {
 
 #define LOGGED_EXCEPTION(fmt, ...)                                                                                      \
     {                                                                                                                   \
-        throw GLT::logger::logged_exception(__FILE__, __FUNCTION__, __LINE__, std::this_thread::get_id(),               \
-            "LOGGER EXCEPTION: " fmt __VA_OPT__(,) __VA_ARGS__);                                                        \
+        throw GLT::logger::logged_exception(__FILE__, __FUNCTION__, __LINE__, GLT_MODULE_NAME,                          \
+            std::this_thread::get_id(), "LOGGER EXCEPTION: " fmt __VA_OPT__(,) __VA_ARGS__);                            \
     }
 
 #define LOG_INIT                                                            LOG(trace, "init");
 #define LOG_SHUTDOWN                                                        LOG(trace, "shutdown");
+
+#define LOG_LOADED                                                          LOG(trace, "loaded");
+#define LOG_UNLOADED                                                        LOG(trace, "unloaded");
 
 // Assertion & Validation ----------------------------------------------------------------------------------------------
 // In logger.h

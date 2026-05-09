@@ -20,7 +20,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED                     ON)
 set(CMAKE_CXX_EXTENSIONS                            OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS                   ON)
 
-if(UNIX)
+if(UNIX AND NOT APPLE)
     add_compile_definitions(PLATFORM_LINUX)
     set(LINUX_SYSTEM_LIBS                           pthread dl) # set a variable for system libraries
 elseif(WIN32)

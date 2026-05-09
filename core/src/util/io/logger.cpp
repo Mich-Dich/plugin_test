@@ -16,6 +16,10 @@ namespace GLT::logger {
 
     // STATIC VARIABLES ================================================================================================
 
+    static bool                                 s_use_buffer = true;
+    static std::vector<message_data>            s_log_buffer;
+    static std::mutex                           s_buffer_mutex;
+
     // ---------- default (fallback) implementations --------------------------------
     static bool default_init(const std::string& /*format*/, bool /*log_to_console*/, const std::filesystem::path& /*log_dir*/,
         const std::string& /*main_log_file_name*/, bool /*use_append_mode*/) {
@@ -27,19 +31,22 @@ namespace GLT::logger {
         // nothing
     }
 
-    static void default_log_msg_internal(severity msg_sev, const char* /*file_name*/, const char* /*function_name*/, int /*line*/, 
-        std::thread::id /*thread_id*/, std::string message) {
+    static void default_log_msg_internal(severity msg_sev, const char* file_name, const char* function_name, int line, 
+        const char* module_name, std::thread::id thread_id, std::string message) {
 
-        // fallback: write directly to stderr with a simple layout
-        static const char* sev_names[] = {"TRACE","DEBUG","INFO","WARN","ERROR","FATAL"};
-        
-        fprintf(stdout, "[%s] %s\n", sev_names[static_cast<int>(msg_sev)], message.c_str());
+        if (s_use_buffer) {
+
+            std::lock_guard lock(s_buffer_mutex);
+            s_log_buffer.emplace_back(msg_sev, file_name, function_name, line, module_name, thread_id, message);
+
+        } else {        // fallback: write directly to stderr with a simple layout
+
+            static const char* sev_names[] = {"TRACE","DEBUG","INFO","WARN","ERROR","FATAL"};
+            fprintf(stdout, "[%s] %s\n", sev_names[static_cast<int>(msg_sev)], message.c_str());
+        }
     }
 
-    static std::filesystem::path default_get_log_file_location() {
-        return {};
-    }
-
+    static std::filesystem::path default_get_log_file_location() { return {}; }
     static void default_set_format(const std::string&) { }
     static void default_use_previous_format() { }
     static const std::string default_get_format() { return {}; }
@@ -73,48 +80,72 @@ namespace GLT::logger {
         g_logger = funcs;   // safe as long as called before any logging threads run
     }
 
+
     bool init(const std::string& format, bool log_to_console, const std::filesystem::path& log_dir, const std::string& main_log_file_name, bool use_append_mode) {
         return g_logger.init(format, log_to_console, log_dir, main_log_file_name, use_append_mode);
     }
 
+    
     void shutdown() {
         g_logger.shutdown();
     }
 
+    
     std::filesystem::path get_log_file_location() {
         return g_logger.get_log_file_location();
     }
 
+    
     void set_format(const std::string& new_format) {
         g_logger.set_format(new_format);
     }
 
+    
     void use_previous_format() {
         g_logger.use_previous_format();
     }
 
+    
     const std::string get_format() {
         return g_logger.get_format();
     }
 
+    
     void set_buffer_threshold(severity new_threshold) {
         g_logger.set_buffer_threshold(new_threshold);
     }
 
+    
     void set_buffer_size(size_t new_size) {
         g_logger.set_buffer_size(new_size);
     }
 
+    
     void register_label_for_thread(const std::string& thread_label, std::thread::id thread_id) {
         g_logger.register_label_for_thread(thread_label, thread_id);
     }
+
 
     void unregister_label_for_thread(std::thread::id thread_id) {
         g_logger.unregister_label_for_thread(thread_id);
     }
 
-    void log_msg_internal(severity msg_sev, const char* file_name, const char* function_name, int line, std::thread::id thread_id, std::string message) {
-        g_logger.log_msg_internal(msg_sev, file_name, function_name, line, thread_id, std::move(message));
+
+    void log_msg_internal(severity msg_sev, const char* file_name, const char* function_name, int line, const char* module_name,
+        std::thread::id thread_id, std::string message) {
+
+        g_logger.log_msg_internal(msg_sev, file_name, function_name, line, module_name, thread_id, std::move(message));
+    }
+
+
+    std::vector<message_data> drain_log_buffer(const bool disable_buffer) {
+
+        s_use_buffer = !disable_buffer;
+
+        std::lock_guard lock(s_buffer_mutex);
+        std::vector<message_data> drained;
+        drained.swap(s_log_buffer);
+        return drained;
     }
 
     // CLASS IMPLEMENTATION ============================================================================================

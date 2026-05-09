@@ -81,7 +81,7 @@ namespace GLT::plugin_manager {
 
         void* handle = dlopen(info.path.c_str(), RTLD_NOW);             // Open library.
         if (!handle) {
-            fprintf(stderr, "Plugin load failed: %s\n", dlerror());     // Log error and fail.
+            LOG(error, "Plugin load failed: %s", dlerror());     // Log error and fail.
             return plugin_load_error::failed_to_load;
         }
 
@@ -89,7 +89,7 @@ namespace GLT::plugin_manager {
         auto create = reinterpret_cast<create_plugin_func>(dlsym(handle, "create_plugin"));
         auto destroy = reinterpret_cast<destroy_plugin_func>(dlsym(handle, "destroy_plugin"));
         if (!create || !destroy) {
-            fprintf(stderr, "Plugin '%s' missing required symbols.\n", info.name.c_str());
+            LOG(error, "Plugin '%s' missing required symbols.", info.name.c_str());
             dlclose(handle);
             return plugin_load_error::failed_to_find_factory_functions;
         }
@@ -161,13 +161,13 @@ namespace GLT::plugin_manager {
             // Temporarily load the library to get the descriptor.
             void* handle = dlopen(path.c_str(), RTLD_LAZY);
             if (!handle) {
-                fprintf(stderr, "dlopen failed, %s\n", dlerror());
+                LOG(error, "dlopen failed, %s", dlerror());
                 continue;
             }
 
-            auto desc_fn = reinterpret_cast<descriptor_func>(dlsym(handle, "gluttony_descriptor"));
+            auto desc_fn = reinterpret_cast<descriptor_func>(dlsym(handle, "gluttony_plugin_descriptor"));
             if (!desc_fn) {
-                fprintf(stderr, "dlsym failed, %s\n", dlerror());
+                LOG(error, "dlsym failed, %s", dlerror());
                 dlclose(handle);
                 continue; // descriptor is mandatory
             }
@@ -218,15 +218,28 @@ namespace GLT::plugin_manager {
             progress = false;
             for (auto it = pending.begin(); it != pending.end(); ) {
                 if (dependencies_satisfied(*it)) {
-                    plugin_load_error err = load_single(*it);
-                    if (err == plugin_load_error::none) {
-                        it = pending.erase(it);
-                        progress = true;       // we made progress, keep trying others
-                    } else {
-                        // Permanent failure – remove from list, log, and continue.
-                        LOG(error, "Failed to load plugin '{}': {}", it->name, static_cast<int>(err));
-                        it = pending.erase(it);
-                        // Do NOT set progress = true – the error doesn't satisfy new dependencies.
+                    plugin_load_error load_error = load_single(*it);
+
+                    switch (load_error) {
+
+                        case plugin_load_error::none: {
+                            it = pending.erase(it);
+                            progress = true;       // we made progress, keep trying others
+                            break;
+                        }
+                        case plugin_load_error::failed_to_load:                             [[fallthrough]];
+                        case plugin_load_error::failed_to_find_factory_functions:           [[fallthrough]];
+                        case plugin_load_error::failed_to_create_instance: {
+                            // Permanent failure – remove from list, log, and continue.
+                            LOG(error, "Failed to load plugin '{}': {}", it->name, static_cast<int>(load_error));
+                            it = pending.erase(it);
+                            break;
+                        }
+                        case plugin_load_error::already_loaded: {
+                            it = pending.erase(it);
+                            break;
+                        }
+                        default:                                                            break;
                     }
                 } else {
                     ++it;
@@ -237,7 +250,7 @@ namespace GLT::plugin_manager {
         if (!pending.empty()) {
             // Some plugins could not be loaded due to missing dependencies.
             for (const auto& p : pending) {
-                fprintf(stderr, "Plugin '%s' could not be loaded: unsatisfied dependencies or load error.\n", p.name.c_str());
+                LOG(error, "Plugin [%s] could not be loaded: unsatisfied dependencies or load error", p.name.c_str());
             }
         }
     }

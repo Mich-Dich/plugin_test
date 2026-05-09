@@ -1,6 +1,6 @@
 
 #include <iostream>
-#include <plugin_interface.h>
+#include <plugin_system/plugin_interface.h>
 
 // FORWARD DECLARATIONS ================================================================================================
 
@@ -15,11 +15,11 @@ namespace GLT::input_test {
 
     // STATIC VARIABLES ================================================================================================
 
-    static const char* dependencies[] = {  };
+    static const char* dependencies[] = { "logger" };
     static GLT::plugin_manager::plugin_descriptor descriptor = {
-        .name                   = "input test",
+        .name                   = GLT_MODULE_NAME,
         .phase                  = GLT::plugin_manager::load_phase::pre_engine_init,
-        .dependency_count       = 0,
+        .dependency_count       = ARRAY_SIZE(dependencies),
         .dependency_names       = dependencies,
     };
 
@@ -33,35 +33,17 @@ namespace GLT::input_test {
 
     // CLASS PRIVATE ===================================================================================================
 
-    class input_test_plugin : public GLT::plugin_manager::i_plugin {
+    class plugin : public GLT::plugin_manager::i_plugin {
     public:
 
-        void            on_load() override          { fprintf(stdout, "[input_test] loaded\n"); };
+        void            on_load() override          { LOG_LOADED };
         
-        void            on_unload() override        { fprintf(stdout, "[input_test] unloaded\n"); };
+        void            on_unload() override        { LOG_UNLOADED };
 
-        const char*     get_name() const override   { return "input test"; };
+        PLUGIN_GET_NAME
 
     };
 
 }
 
-
-extern "C" {
-
-    // Return the descriptor (mandatory for discovery)
-    const GLT::plugin_manager::plugin_descriptor* gluttony_descriptor() {
-        return &GLT::input_test::descriptor;
-    }
-
-    // Factory to create your plugin instance
-    GLT::plugin_manager::i_plugin* create_plugin() {
-        return new GLT::input_test::input_test_plugin();
-    }
-
-    // Factory to destroy it (called by the custom deleter)
-    void destroy_plugin(GLT::plugin_manager::i_plugin* p) {
-        delete p;
-    }
-
-}
+EXPORT_PLUGIN_CLASS(GLT::input_test::plugin, GLT::input_test::descriptor)

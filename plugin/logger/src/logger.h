@@ -59,6 +59,7 @@ namespace GLT::logger_plugin {
     //
     // @param $Q thread                  Thread_id: 137575225550656 or a label if provided
     // @param $F function name           application::main, math::foo
+    // @param $R module name             core, logger_plugin
     // @param $P only function name      main, foo
     // @param $A file name               /home/workspace/test_cpp/src/main.cpp  /home/workspace/test_cpp/src/project.cpp
     // @param $I only file name          main.cpp
@@ -116,7 +117,8 @@ namespace GLT::logger_plugin {
 
     // THIS SHOULD NEVER BE DIRECTLY CALLED
     // @note empty log messages will be ignored
-    void log_msg_internal(const GLT::logger::severity msg_sev, const char* file_name, const char* function_name, const int line, std::thread::id thread_id, std::string message);
+    void log_msg_internal(const GLT::logger::severity msg_sev, const char* file_name, const char* function_name, const int line, 
+        const char* module_name, std::thread::id thread_id, std::string message);
 
     // TEMPLATE DECLARATION ============================================================================================
 
