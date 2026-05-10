@@ -121,12 +121,6 @@ namespace GLT::glfw_platform {
 		// @return None.
 		void release_cursor();
 
-		// Queues a custom event or function to be executed during event polling.
-		// @tparam Func Callable object type.
-		// @param func Function to queue for execution.
-		template<typename Func>
-		void queue_event(Func&& func) 	{ m_event_queue.push(func); }
-
 	private:
 
 		// Binds all GLFW event callbacks to the window.
@@ -134,8 +128,6 @@ namespace GLT::glfw_platform {
 		// @return None.
 		void bind_event_callbacks();
 
-		std::mutex 							m_event_queue_mutex;	// Mutex protecting the event queue.
-		std::queue<std::function<void()>> 	m_event_queue;         	// Custom event execution queue.
 		std::filesystem::path 				m_icon_path;            // Path to the window icon.
 		GLT::platform::window_attributes	m_data{};     			// Stores all attributes of the window.
 		GLFWwindow* 						m_native_window{};		// Pointer to the GLFW window object.

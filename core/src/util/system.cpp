@@ -180,7 +180,7 @@ namespace GLT::util {
 
         while (std::chrono::high_resolution_clock::now() < target_time) {       // busy-wait for the remaining time with minimal overhead
 
-            std::this_thread::yield();                                          // yield to other threads to avoid completely starving the CPU
+            // std::this_thread::yield();                                          // yield to other threads to avoid completely starving the CPU
             asm volatile("" ::: "memory");                                      // compiler barrier to prevent loop optimization
         }
     }

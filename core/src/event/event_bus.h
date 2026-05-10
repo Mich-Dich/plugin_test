@@ -18,7 +18,7 @@ namespace GLT::event_bus {
     // CONCEPTS ========================================================================================================
 
     template<typename T>
-    concept event_type = std::derived_from<T, GLT::event>;
+    concept event_class = std::derived_from<T, GLT::event>;
 
     // CONSTANTS =======================================================================================================
 
@@ -37,20 +37,20 @@ namespace GLT::event_bus {
 
     // Subscribe to a specific event type.
     // @return A handle that can be used to unsubscribe later.
-    template<event_type T>
-    [[nodiscard]] handle subscribe(event_handler_fn<T> handler);
+    template<event_class T>
+    FORCE_INLINE_R handle subscribe(event_handler_fn<T> handler);
 
 
     // Remove a previously added subscription.
     // @param id The handle returned from subscribe<T>().
-    inline void unsubscribe(handle id);
+    FORCE_INLINE void unsubscribe(handle id);
 
 
     // Dispatch an event to all subscribers of its exact type.
     // Subscribers that are added/removed during dispatch do not affect
     // the current iteration (snapshot taken).
-    template<event_type T>
-    inline void post(T& event);
+    template<event_class T>
+    FORCE_INLINE void post(T& event);
 
     // CLASS DECLARATION ===============================================================================================
 

@@ -40,6 +40,7 @@ namespace GLT::glfw_platform {
 
         void on_load() override { LOG_LOADED }
         
+
         void on_unload() override { LOG_UNLOADED }
 
 
@@ -49,6 +50,7 @@ namespace GLT::glfw_platform {
             mp_window = std::make_unique<window>(attributes);
         }
 
+        
         void destroy() {
             mp_window.reset();
         }
@@ -150,6 +152,9 @@ namespace GLT::glfw_platform {
                 default: break;
             }
         }
+
+
+        void poll_events() override { mp_window->poll_events(); }
 
 
         void* get_native_window_handle() override {

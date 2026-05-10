@@ -22,17 +22,14 @@ namespace GLT::event_bus {
     // STATIC VARIABLES ================================================================================================
 
     // Per‑type lists of subscribers.
-    std::unordered_map<std::type_index, std::list<subscription_entry>>                                  s_subscribers;
+    inline std::unordered_map<std::type_index, std::list<subscription_entry>>                                  s_subscribers;
 
-    // Quick lookup for unsubscription: handle -> (type_index, list iterator)
-    std::unordered_map<handle, std::pair<std::type_index, std::list<subscription_entry>::iterator>>     s_handle_map;
-    
-    std::atomic<handle>                                                                                 s_next_handle{1};
+    inline std::atomic<handle>                                                                                 s_next_handle{1};
 
     // TEMPLATE IMPLEMENTATION =========================================================================================
 
-    template<event_type T>
-    std::function<void(GLT::event&)> make_wrapper(event_handler_fn<T> handler) {
+    template<event_class T>
+    FORCE_INLINE std::function<void(GLT::event&)> make_wrapper(event_handler_fn<T> handler) {
 
         return [handler = std::move(handler)](GLT::event& event) {
             handler(static_cast<T&>(event));        // The bus only calls this when the type already matches, so the cast is safe.
@@ -40,36 +37,36 @@ namespace GLT::event_bus {
     }
 
 
-    template<event_type T>
-    [[nodiscard]] handle subscribe(event_handler_fn<T> handler) {
+    template<event_class T>
+    FORCE_INLINE_R handle subscribe(event_handler_fn<T> handler) {
 
         auto id = s_next_handle.fetch_add(1, std::memory_order_relaxed);
         auto wrapper = make_wrapper<T>(std::move(handler));
         auto& list = s_subscribers[std::type_index(typeid(T))];
-        auto it = list.emplace(list.end(), id, std::move(wrapper));
-        s_handle_map[id] = {std::type_index(typeid(T)), it};
+        list.emplace_back(id, std::move(wrapper));
         return id;
     }
 
 
-    inline void unsubscribe(handle id) {
-        
-        auto map_it = s_handle_map.find(id);
-        if (map_it == s_handle_map.end()) return;
+    FORCE_INLINE void unsubscribe(handle id) {
+            
+        for (auto& [type_idx, list] : s_subscribers) {
+            // Find the subscription with the matching ID and erase it.
+            auto it = std::find_if(list.begin(), list.end(), 
+                [id](const subscription_entry& entry) { return entry.id == id; });
 
-        auto& [type_idx, list_it] = map_it->second;
-        auto sub_it = s_subscribers.find(type_idx);
-        if (sub_it != s_subscribers.end()) {
-            sub_it->second.erase(list_it);
-            if (sub_it->second.empty())
-                s_subscribers.erase(sub_it);
+            if (it != list.end()) {
+                list.erase(it);
+                if (list.empty())       // If the list became empty, remove the type slot.
+                    s_subscribers.erase(type_idx);
+                return;   // Handles are unique – we can stop after the first erase.
+            }
         }
-        s_handle_map.erase(map_it);
     }
 
 
-    template<event_type T>
-    inline void post(T& event) {
+    template<event_class T>
+    FORCE_INLINE void post(T& event) {
         
         auto it = s_subscribers.find(std::type_index(typeid(event)));
         if (it == s_subscribers.end()) return;

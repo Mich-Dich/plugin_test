@@ -49,10 +49,10 @@ namespace GLT {
         }
 
         set_target_fps(30);         // DEBUG-ONLY - TODO: load from config
-        // const auto unused_handle = GLT::event_bus::subscribe<GLT::window_close_event>([this](GLT::window_close_event& event) {
-        //     LOG(trace, "Window close Event");
-        //     m_running = false;
-        // });
+        const auto unused_handle = GLT::event_bus::subscribe<GLT::window_close_event>([this](GLT::window_close_event& event) {
+            LOG(trace, "Window close Event");
+            m_running = false;
+        });
 
         LOG_INIT
         GLT::plugin_manager::load_plugins(GLT::plugin_manager::load_phase::post_engine_init);
@@ -82,12 +82,11 @@ namespace GLT {
 
         while (m_running) {
 
-            // if (!mp_window.expired())
-            //     m_running = !mp_window.lock()->should_close();
+            if (!mp_window.expired())
+                mp_window.lock()->poll_events();        // update internal state
 
             // ... render, update ...
             
-            LOG(trace, "Loop iteration")
             m_fps_controller.limit();
         }
     }

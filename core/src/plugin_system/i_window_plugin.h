@@ -75,6 +75,8 @@ namespace GLT::platform {
         virtual void set_vsync(bool vsync) = 0;
         virtual void set_cursor_mode(cursor_mode mode) = 0;   // normal, hidden, captured
 
+        virtual void poll_events() = 0;
+        
         // Returns a void* that render backends can cast (GLFWwindow*, HWND, etc.).
         virtual void* get_native_window_handle() = 0;
     };

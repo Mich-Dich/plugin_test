@@ -201,19 +201,7 @@ namespace GLT::glfw_platform {
 	bool window::should_close() { return glfwWindowShouldClose(m_native_window); }
 
 
-    void window::poll_events() {
-
-		glfwPollEvents();
-
-		// prossess constom queue
-		std::scoped_lock<std::mutex> lock(m_event_queue_mutex);
-		while (m_event_queue.size() > 0) {
-
-			auto& func = m_event_queue.front();
-			func();
-			m_event_queue.pop();
-		}
-	}
+    void window::poll_events() { glfwPollEvents(); }
 
 
 	void window::capture_cursor() { glfwSetInputMode(m_native_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); }
