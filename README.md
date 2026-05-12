@@ -2,40 +2,14 @@
 
 **A scrappy, work‑in‑progress C++23 application skeleton that loads things as plugins because why not?**
 
-Gluttony is my hobby project: a microkernel‑ish executable that discovers shared libraries at runtime and stitches them together into a running program. Right now it’s mostly a logger with delusions of grandeur, but the blueprint is there for windowing, input, audio, and whatever else I decide to bolt on later. It’s rough around the edges, the code still has training wheels, and you definitely shouldn’t use this for anything serious… but if you enjoy poking at half‑finished C++ experiments, pull up a chair.
+**Gluttony** is my hobby project: a microkernel‑ish executable that discovers shared libraries at runtime and stitches them together into a running program. The plugin manager sorts out load phases and dependencies, an event bus lets everything talk without knowing about each other, a GLFW window plugin actually opens a window and translates input into typed events, the async logger is fully baked with its own format language, and there’s even a crash handler for when things inevitably go sideways. It’s still rough around the edges, the code has training wheels, and you definitely shouldn’t use this for anything serious… but if you enjoy poking at half‑finished C++ experiments, pull up a chair.
 
 > **⚠ This is very much a work in progress.**  
 > The core runs, the plugin manager resolves dependencies, and the logger is actually pretty neat, but large parts are still just empty interfaces waiting for an implementation. Expect missing features, occasional jank, and comments that promise things that don’t exist yet. You’ve been warned.
 
 ---
 
-## What’s inside the box?
-
-Even in its half‑baked state, Gluttony already has a few moving pieces:
-
-- **Microkernel core** – A tiny executable that discovers plugins (`*.so`) and loads them in the right order based on a *load phase* and dependencies. But unlike traditional Microkernel everything lives in one address space for speed.
-
-- **Plugin system with training wheels**  
-  Plugins export a descriptor that says “I’m ready after the render device is up” and “I need the logger”. The manager sorts it all out, calls `on_load` / `on_unload`, and even gives you a nice `get_plugin<T>()` accessor. It’s not bulletproof, but it works for the handful of plugins I’ve thrown at it.
-
-- **Logger (plugin)**  
-  Honestly, the logger is the most polished part. It formats messages with a custom string mini‑language (`$T`, `$L`, `$C`, etc.), writes to file and console, buffers low‑severity messages to avoid thrashing the disk, and even runs its own worker thread. Thread labels, runtime format switching, and a “warn” threshold that flushes the buffer – I had fun with this one.
-
-- **Crash handler for a graceful faceplant**  
-  Catches signals (Linux) or exceptions (Windows) and runs cleanup functions you’ve registered. The logger subscribes to it automatically, so if the program explodes, you still get the last few log lines.
-
-- **A generic resource cache** (header‑only)  
-  Thread‑safe `resource_manager` template with optional background cleanup. It’s there if you need it, but right now nothing uses it. Maybe I’ll plug it into a future asset pipeline.
-
-- **Utility grab bag**  
-  Platform helpers (executable path, system time, precision sleep), macro voodoo for getters/setters, copy/move deletion, etc. All the usual boilerplate that makes C++ slightly less painful.
-
-- **CMake build with PCH**  
-  Because waiting for compiles is boring. The helper script even prints a pretty list of source files with line counts and sizes – because I like seeing statistics.
-
----
-
-## Quickstart (if you’re feeling brave)
+## Quickstart
 
 **Prerequisites**  
 - Linux (Windows maybe later, when I buy a new keyboard to smash)  
@@ -46,54 +20,75 @@ Even in its half‑baked state, Gluttony already has a few moving pieces:
 git clone https://github.com/your-username/gluttony.git
 cd gluttony
 cmake -B build -DCMAKE_BUILD_TYPE=debug
-cmake --build build
+cmake --build build --parallel
 ./build/bin/debug/Gluttony
 ```
 
-It’ll start up, discover any plugins in the `plugin/` directory, load the ones ready for `pre_engine_init`, fire up the logger, and then probably just sit there because the application loop isn’t written yet. But you’ll get a pretty log file.
+It’ll start up, discover any plugins in the `plugin/` directory, load the ones ready for `pre_engine_init`, fire up the logger, create a window, and then … still just sit there because the application loop isn’t doing much yet. But you’ll get a pretty log file and a window that listens to input events.
 
 ---
 
-## How the plugin dance works
+## Core systems
 
-1. **Discovery**: The core scans the `plugin/` folder for shared libraries. Each one must export a descriptor function (`gluttony_plugin_descriptor`) that returns a struct with the plugin’s name, required load phase, and dependencies.
+* **Plugin Manager**
+  * **Discovery**: The core scans the `plugin/` folder for shared libraries. Each one must export a descriptor function (`gluttony_plugin_descriptor`) that returns a struct with the plugin’s name, required load phase, and dependencies.
+  * **Dependency resolution**: The manager loads plugins phase by phase. Within a phase, it repeatedly scans the list of candidates and loads any plugin whose dependencies are already present (from an earlier phase or from another plugin that just got loaded in the same phase). It keeps retrying until no more progress can be made. If a plugin still has unmet dependencies after all that, the manager logs a desolate error message and moves on to the next phase. So if plugin `B` needs plugin `A` and both are in the same phase, `A` gets loaded first.
+  * **Lifetime**: `create_plugin()` gives the core a shiny new instance, `on_load()` lets it initialise, and later `on_unload()` tells it to clean up. When the core shuts down, plugins are unloaded in reverse order.
 
-* **Dependency resolution**: The manager loads plugins phase by phase. Within a phase, it repeatedly scans the list of candidates and loads any plugin whose dependencies are already present (from an earlier phase or from another plugin that just got loaded in the same phase). It keeps retrying until no more progress can be made. If a plugin still has unmet dependencies after all that, the manager logs a desolate error message and moves on to the next phase. So if plugin `B` needs plugin `A` and both are in the same phase, `A` gets loaded first.
+  The plugin interface (`i_plugin`) is intentionally minimal. Subsystem interfaces (like `i_window_plugin` for a window) inherit from it, so the core can talk to them without knowing the details.
 
-3. **Lifetime**: `create_plugin()` gives the core a shiny new instance, `on_load()` lets it initialise, and later `on_unload()` tells it to clean up. When the core shuts down, plugins are unloaded in reverse order.
+* **Event Bus**
+  A type‑safe publish/subscribe system that lets any part of the engine (plugins, core, or even other systems) define custom events and post them. Subscribers register via `subscribe<T>(handler)` and receive only events of the exact type `T`. Dispatching takes a snapshot of the handlers, so it’s safe to add or remove subscribers while an event is being fired. Events like `window_resize`, `key_event`, `mouse_event`, `window_drop`, etc. are already defined, and plugins can create their own by deriving from `event_template`.
 
-The plugin interface (`i_plugin`) is intentionally minimal. Subsystem interfaces (like `i_window_plugin` for a future window) inherit from it, so the core can talk to them without knowing the details.
+* **Crash Handler**
+  Catches signals (Linux) or exceptions (Windows) and runs any registered cleanup functions. The logger subscribes automatically, so you still get the last log lines when the program faceplants.
+
+* **Resource Cache** (header‑only)
+  Thread‑safe `resource_manager` template with optional background cleanup. Not used yet, but ready for a future asset pipeline.
+
+* **Utility Library**
+  Platform helpers (executable path, high‑precision sleep, system time), macro shortcuts for getters/setters, copy/move deletion, and other C++ boilerplate that makes life a little less painful.
 
 ---
 
-## Logger – the fancy part
+## Current plugins
 
-I spent way too much time on this. The format string is the heart of it:
-So `"$B[$T:$J] $L$E $C$Z"` prints something like `[14:22:05] INFO Hello` in colour.
+* **Logger**
+  I spent way too much time on this. The format string is the heart of it:
+  So `"$B[$T:$J] $L$E $C$Z"` prints something like `[14:22:05] INFO Hello` in colour.
+  You can change the format on the fly, register thread names, and set a severity threshold that controls when buffered messages get flushed. It’s asynchonous, so the calling thread just drops a message and runs.
 
-You can change the format on the fly, register thread names, and set a severity threshold that controls when buffered messages get flushed. It’s asynchonous, so the calling thread just drops a message and runs.
+* **GLFW Window**
+  A fully functional window plugin built on GLFW. It handles creation, input, and all the usual window callbacks (resize, move, focus, mouse, keyboard, drag‑and‑drop, etc.) and translates them into engine events via the event bus so any other system can react. Supports windowed / fullscreen / borderless fullscreen, vsync, cursor modes, and exposes a native window handle for rendering backends. It’s what makes the demo window open and respond to your mouse and keys.
 
 ---
 
-## Current TODOs:
+## Current TODOs
 - add capability to recompile the core and then static link the plugins
-- create a settings system so the core can decide what plugin to use for a given task (eg: glfw_window or sdl_window for the window)
-
+- create a settings system so the core can decide what plugin to use for a given task (e.g. glfw_window or sdl_window for the window)
 
 ### planned plugins
-- Windowing
-- memory manager
-- audio
-- renderer
-
+- **Memory Manager** – Central allocator, tracking, and leak detection
+- **Configuration / Settings** – Typed settings API fed by config files and command line
+- **Input System** – Decoupled input processing: action maps, chords, device abstraction
+- **Virtual File System** – Mount directories and archives, provide unified async I/O
+- **Graphics API Abstraction (RHI)** – Thin wrapper over Vulkan/D3D12/OpenGL
+- **Render Hardware Interface (Device)** – GPU device, swapchain, primary render targets
+- **Renderer Frontend** – Drawing pipeline, mesh submission, materials, post‑processing
+- **Asset Registry** – Asset discovery, GUIDs, and metadata database
+- **Resource Cache** – Thread‑safe on‑demand asset loading and background streaming
+- **Entity Component System (ECS)** – Data‑oriented entity/component management and system execution
+- **Scene / World Manager** – Load/unload scenes, serialisation, scene streaming
+- **Physics** – Collision detection and dynamics (Bullet/PhysX/Jolt)
+- **Audio** – 2D/3D sound playback, sound banks, spatial audio
+- **Scripting** – Embed a language (Lua, AngelScript, C#) for gameplay logic
+- **UI System** – Retained‑mode UI for menus and HUDs (e.g., Slate, Noesis)
+- **Editor Core** – Editor framework: viewport, hierarchy, inspector, content browser
+- **Editor Plugins** – Modular tools (material editor, terrain, graph editor) that extend the editor
+- **Networking** – Client/server connections, entity replication, RPCs
+- **Online Subsystem** – Platform‑specific services (Steamworks, Epic Online Services)
 ---
-
-## Why does this exist?
-
-Because I love the idea of a modular engine core that can be extended without recompiling the whole world. And because I enjoy the process of building scaffolding, even if I never finish the cathedral. It’s a learning project, a sandbox, and a gentle reminder that side projects don’t have to be perfect to be fun.
 
 If you find a bug or want to add something, open an issue or a PR – I can’t promise prompt responses, but I’ll be thrilled that someone else looked at the code.
-
----
 
 *Thanks for stopping by. Now go build something equally half‑baked.*

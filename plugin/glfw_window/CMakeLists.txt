@@ -6,7 +6,7 @@
 # Purpose:      compile the plugin in this die as a shared lib
 # =============================================================================
 
-set(PLUGIN_NAME                                 "window")
+set(PLUGIN_NAME                                 "glfw_window")
 file(GLOB_RECURSE                               PLUGIN_SOURCES
     CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"

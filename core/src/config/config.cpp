@@ -12,14 +12,25 @@ namespace GLT::config {
 
     // CONSTANTS =======================================================================================================
 
+    constexpr std::array<std::string_view, static_cast<size_t>(type::launcher) +1> s_file_type_names = {
+        "ui",
+        "imgui",
+        "input",
+        "app_settings",
+        "plugin",
+        "project",
+        "launcher",
+    };
+
     // MACROS ==========================================================================================================
 
-    #define REMOVE_WHITE_SPACE(line)                                                            \
-        line.erase(std::remove_if(line.begin(), line.end(),                                     \
-            [](char c) { return c == '\r' || c == '\n' || c == '\t'; }),                        \
+    #define REMOVE_WHITE_SPACE(line)                                                                                    \
+        line.erase(std::remove_if(line.begin(), line.end(),                                                             \
+            [](char c) { return c == '\r' || c == '\n' || c == '\t'; }),                                                \
             line.end());
 
-    #define BUILD_CONFIG_PATH(x) CONFIG_DIR + config::file_type_to_string(x) + FILE_EXTENSION_CONFIG
+    #define BUILD_CONFIG_PATH(x)                                                                                        \
+        ( CONFIG_DIR.string() + file_type_to_string(x) + FILE_EXTENSION_CONFIG )
 
     // TYPES ===========================================================================================================
 
@@ -27,13 +38,15 @@ namespace GLT::config {
 
     // FUNCTION IMPLEMENTATION =========================================================================================
 
-    void init(std::filesystem::path dir) {
+    void init() {
 
-        io::create_directory(dir / CONFIG_DIR);
-        LOG(trace, "Checking Engine config files at [{}]", (dir / CONFIG_DIR).string());
+        const std::filesystem::path root_dir = GLT::util::get_executable_path();
+        io::create_directory(root_dir / CONFIG_DIR);
+        LOG(trace, "Checking Engine config files at [{}]", (root_dir / CONFIG_DIR).string());
         for (int i = 0; i <= static_cast<int>(type::input); ++i) {
 
-            std::filesystem::path file_path = dir / CONFIG_DIR / (config::file_type_to_string(static_cast<type>(i)) + FILE_EXTENSION_CONFIG);
+            std::filesystem::path file_path = root_dir / CONFIG_DIR /
+                (file_type_to_string(static_cast<type>(i)) + FILE_EXTENSION_CONFIG);
             std::ofstream config_file(file_path, std::ios::app);
             VALIDATE(config_file.is_open(), return, "", "Failed to open/create config file: [{}]", file_path)
             config_file.close();
@@ -41,13 +54,14 @@ namespace GLT::config {
     }
 
 
-    void create_config_files_for_project(std::filesystem::path project_dir) {
+    void create_config_files_for_project(const std::filesystem::path& project_dir) {
 
         io::create_directory(project_dir / CONFIG_DIR);
         LOG(trace, "Checking project config files at [{}]", project_dir / CONFIG_DIR);
         for (int i = 0; i <= static_cast<int>(type::input); ++i) {
 
-            std::filesystem::path file_path = project_dir / CONFIG_DIR / (config::file_type_to_string(static_cast<type>(i)) + FILE_EXTENSION_CONFIG);
+            std::filesystem::path file_path = project_dir / CONFIG_DIR /
+                (file_type_to_string(static_cast<type>(i)) + FILE_EXTENSION_CONFIG);
             std::ofstream config_file(file_path, std::ios::app);
             VALIDATE(config_file.is_open(), return, "", "Failed to open/create config file: [{}]", file_path)
             config_file.close();
@@ -55,28 +69,17 @@ namespace GLT::config {
     }
 
 
-    std::string file_type_to_string(type value) {
-        switch (value) {
-            case type::ui:              return "ui";
-            case type::imgui:           return "imgui";
-            case type::input:           return "input";
-            case type::app_settings:    return "app_settings";
-            case type::editor:          return "editor";
-            case type::engine:          return "engine";
-            case type::game:            return "game";
-            case type::launcher:        return "launcher";
-            default:                    return "unknown";
-        }
+    [[nodiscard]] std::string file_type_to_string(const type value) {
+
+        auto targeted_index = static_cast<size_t>(value);
+        if (targeted_index < s_file_type_names.size())
+            return std::string(s_file_type_names[targeted_index]);
+        return "unknown";
     }
 
 
-    std::filesystem::path get_filepath_from_config_type(type type)          { return std::filesystem::path(CONFIG_DIR) / (config::file_type_to_string(type) + FILE_EXTENSION_CONFIG); }
-
-
-    std::filesystem::path get_filepath_from_config_type_ini(type type)      { return std::filesystem::path(CONFIG_DIR) / (config::file_type_to_string(type) + FILE_EXTENSION_INI); }
-
-
-    bool check_for_configuration(const type target_config_file, const std::string &section, const std::string &key, std::string &value, const bool override) {
+    bool check_for_configuration(const type target_config_file, const std::string& section, const std::string& key,
+        std::string& value, const bool override) {
 
         std::filesystem::path file_path = BUILD_CONFIG_PATH(target_config_file);
         std::ifstream configFile(file_path, std::ios::in | std::ios::binary);

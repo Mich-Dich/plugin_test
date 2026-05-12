@@ -1,5 +1,6 @@
 
 #include "util/pch.h"
+#include "config/config.h"
 #include "plugin_system/plugin_manager.h"
 #include "application.h"
 
@@ -29,7 +30,9 @@
 int MAIN_FUNC {
     
     {
-        GLT::plugin_manager::discover_plugins(GLT::util::get_executable_path() / "plugin");
+        GLT::config::init();
+        GLT::plugin_manager::discover_plugins();
+
         GLT::plugin_manager::load_plugins(GLT::plugin_manager::load_phase::pre_engine_init);
         GLT::logger::init("[$B$T:$J$E] [$B$R $L$X $Q - $I:$P:$G$E] $C$Z", true, GLT::util::get_executable_path() / "logs",
             "gluttony.log", true);

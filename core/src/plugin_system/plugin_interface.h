@@ -65,12 +65,39 @@ namespace GLT::plugin_manager {
     };
 
 
+    enum class targeted_interface : u16 {
+        none = 0,
+        logger,
+        window,
+        memory_manager,
+        configuration,
+        input_system,
+        virtual_file_system,
+        graphics_api,
+        render_device,
+        renderer_frontend,
+        asset_registry,
+        resource_cache,
+        ecs,
+        scene_manager,
+        physics,
+        audio,
+        scripting,
+        ui_system,
+        editor_core,
+        networking,
+        online_subsystem,
+        custom,                     // needs to be last!
+    };
+
+
     // Descriptor that every plugin must export.
     struct plugin_descriptor {
-        const char*                     name;
-        load_phase                      phase;              // is a [u16]
-        int                             dependency_count;
-        const char* const*              dependency_names;   // array of C‑strings, nullptr if zero
+        const char*                     name{};
+        load_phase                      phase{};                // is a [u16]
+        targeted_interface              target{};               // is a [u16]
+        int                             dependency_count{};
+        const char* const*              dependency_names{};     // array of C‑strings, nullptr if zero
     };
 
     // STATIC VARIABLES ================================================================================================

@@ -5,7 +5,7 @@
         "body": [
             "#pragma once",
             "",
-            "#include \"util/pch_editor.h\"",
+            "#include \"util/pch.h\"",
             "#include \"${TM_FILENAME_BASE}.h\"",
             "",
             "",

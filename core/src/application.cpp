@@ -26,12 +26,8 @@ namespace GLT {
 
     application::application(int argc, char* argv[]) {
 
-        /* TODOs:
-            - load m_version
-        */
-
         GLT::plugin_manager::load_plugins(GLT::plugin_manager::load_phase::post_platform_file_init);
-        auto weak_win = GLT::plugin_manager::get_plugin("window");
+        auto weak_win = GLT::plugin_manager::get_plugin_by_targeted_interface(plugin_manager::targeted_interface::window);
         if (!weak_win.expired()) {
 
             auto p_weak_win = weak_win.lock();
@@ -50,7 +46,6 @@ namespace GLT {
 
         set_target_fps(30);         // DEBUG-ONLY - TODO: load from config
         const auto unused_handle = GLT::event_bus::subscribe<GLT::window_close_event>([this](GLT::window_close_event& event) {
-            LOG(trace, "Window close Event");
             m_running = false;
         });
 

@@ -31,14 +31,15 @@ namespace GLT::serializer {
 			m_file_content << section_name << ":\n";
 			m_level_of_indention = 1;
 		}
-
 	}
+
 
 	yaml::~yaml() {
 
 		if (m_option == option::save_to_file)
 			serialize();
 	}
+
 
 	void yaml::serialize() {
 
@@ -57,12 +58,8 @@ namespace GLT::serializer {
 			if (!found && (line.find(m_name + ":") != std::string::npos) && (util::measure_indentation(line, NUM_OF_INDENTING_SPACES) == 0)) {
 
 				found = true;
-
-				// override section with new content
-				updated_file << m_file_content.str();
-
-				// SKIP CONTENT
-				while (std::getline(istream, line)) {
+				updated_file << m_file_content.str();			// override section with new content
+				while (std::getline(istream, line)) {			// SKIP CONTENT
 
 					if (line.back() == ':' && util::measure_indentation(line, NUM_OF_INDENTING_SPACES) == 0) {	// still in section ??
 
@@ -88,6 +85,7 @@ namespace GLT::serializer {
 		ostream << updated_file.str();
 		ostream.close();
 	}
+
 
 	yaml& yaml::deserialize() {
 
@@ -136,6 +134,7 @@ namespace GLT::serializer {
 		return *this;
 	}
 
+
 	void yaml::extract_key_value(std::string& key, std::string& value, std::string& line) {
 
 		std::istringstream iss(line);
@@ -148,6 +147,7 @@ namespace GLT::serializer {
 		if (!value.empty() && value.front() == ' ')
 			value.erase(0, 1);
 	}
+
 
 	yaml& yaml::sub_section(const std::string& section_name, std::function<void(serializer::yaml&)> sub_section_function) {
 

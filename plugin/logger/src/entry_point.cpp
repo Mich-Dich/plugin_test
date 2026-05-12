@@ -23,6 +23,7 @@ namespace GLT::logger_plugin {
     static GLT::plugin_manager::plugin_descriptor descriptor = {
         .name                                   = GLT_MODULE_NAME,
         .phase                                  = GLT::plugin_manager::load_phase::pre_engine_init,
+        .target                                 = GLT::plugin_manager::targeted_interface::logger,
         .dependency_count                       = ARRAY_SIZE(dependencies),
         .dependency_names                       = dependencies,
     };

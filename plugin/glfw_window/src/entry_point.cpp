@@ -21,6 +21,7 @@ namespace GLT::glfw_platform {
     static GLT::plugin_manager::plugin_descriptor descriptor = {
         .name                                   = GLT_MODULE_NAME,
         .phase                                  = GLT::plugin_manager::load_phase::post_platform_file_init,
+        .target                                 = GLT::plugin_manager::targeted_interface::window,
         .dependency_count                       = ARRAY_SIZE(dependencies),
         .dependency_names                       = dependencies,
     };

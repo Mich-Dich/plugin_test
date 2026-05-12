@@ -22,7 +22,7 @@ namespace GLT {
 	// CLASS DECLARATION ===============================================================================================
 
     // Single mouse event class for all mouse actions
-    class mouse_event : public event_template<event_type::mouse, event_category::mouse | event_category::input | event_category::button> {
+    class mouse_event : public event {
     public:
         enum class action_type : u8 {
             button,     // Mouse button press/release
@@ -80,7 +80,7 @@ namespace GLT {
 
 
     // Single keyboard event class for all keyboard actions
-    class key_event : public event_template<event_type::key_input, event_category::keyboard | event_category::input> {
+    class key_event : public event {
     public:
         key_event(key_code code, key_state state, i32 mods = 0)
             : m_key_code(code), m_key_state(state), m_modifiers(mods) {}
@@ -102,7 +102,7 @@ namespace GLT {
 
 
     // Character input event (text input, not physical keys)
-    class char_event : public event_template<event_type::char_input, event_category::keyboard | event_category::input> {
+    class char_event : public event {
     public:
         char_event(u32 codepoint, i32 mods = 0)
             : m_codepoint(codepoint), m_modifiers(mods) {}

@@ -16,16 +16,15 @@ namespace GLT::config {
 
 	// Represents different configuration file types used by the system (underlying type: u8).
 	enum class type : u8 {
-
-		ui,				// UI related configuration.
+		ui = 0,			// UI related configuration.
 		imgui,			// ImGui specific configuration.
 		input,			// Input bindings / input-related configuration.
 		app_settings,	// Application-wide settings.
-		editor,
-		engine,
-		game,
+		plugin,
+		project,
 		launcher,
 	};
+
 
 	// Represents operations that can be performed on configuration files (underlying type: u8).
 	enum class operation : u8 {
@@ -40,29 +39,34 @@ namespace GLT::config {
 	// @brief Initializes the configuration files by creating necessary directories and default files.
 	// @param dir The root directory where configuration files and the CONFIG_DIR will be created.
 	// @return void This function does not have a return value.
-	void init(std::filesystem::path dir);
+	void init();
 
+	
 	// @brief Creates configuration files for a specific project by ensuring the project's CONFIG_DIR exists and creating empty config files.
 	// @param project_dir The project directory where project-specific configuration files will be stored.
 	// @return void This function does not have a return value.
-	void create_config_files_for_project(std::filesystem::path project_dir);
+	void create_config_files_for_project(const std::filesystem::path& project_dir);
+
 
 	// @brief Converts a configuration type enum value to its string representation.
 	// @param type The type enum value to convert.
 	// @return std::string The string name corresponding to the type enum (e.g., "ui", "imgui"). Returns "unknown" if the type is not recognized.
-	std::string file_type_to_string(type value);
+    [[nodiscard]] std::string file_type_to_string(const type value);
+
 
 	// @brief Resolves a configuration file path for a given root directory and configuration file type.
 	// @param root The root directory containing the CONFIG_DIR.
 	// @param type The configuration file type to resolve.
 	// @return std::filesystem::path The full path to the configuration type with the configured extension (e.g., CONFIG_DIR/<type>.config).
-	std::filesystem::path get_filepath_from_config_type(type type);
+	FORCE_INLINE_R std::filesystem::path get_filepath_from_config_type(const type type);
+
 
 	// @brief Resolves a configuration file path (INI extension) for a given root directory and configuration file type.
 	// @param root The root directory containing the CONFIG_DIR.
 	// @param type The configuration file type to resolve.
 	// @return std::filesystem::path The full path to the configuration INI type (e.g., CONFIG_DIR/<type>.ini).
-	std::filesystem::path get_filepath_from_config_type_ini(type type);
+	FORCE_INLINE_R std::filesystem::path get_filepath_from_config_type_ini(const type type);
+
 
 	// @brief Checks for the existence of a configuration entry in the specified configuration type. If found and override==true, the existing value is replaced.
 	//        If found and override==false the current value is loaded into the provided value reference. If not found, the key/value pair is appended.
@@ -72,10 +76,13 @@ namespace GLT::config {
 	// @param value Reference to a string that will be updated with the existing value (when override==false) or used to overwrite/append when override==true.
 	// @param override If true, existing value is replaced with the provided value; if false, the provided value is overwritten by the existing value if found.
 	// @return bool true if the key was found (and possibly updated/appended), false if not found or on failure.
-	bool check_for_configuration(const type target_config_file, const std::string& section, const std::string& key, std::string& value, const bool override);
+	bool check_for_configuration(const type target_config_file, const std::string& section, const std::string& key, 
+		std::string& value, const bool override);
 
 	// TEMPLATE DECLARATION ============================================================================================
 
 	// CLASS DECLARATION ===============================================================================================
 
 }
+
+#include "config.inl"

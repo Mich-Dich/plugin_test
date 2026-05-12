@@ -26,7 +26,7 @@ namespace GLT::serializer {
 	class yaml {
 	public:
 
-		yaml(const std::filesystem::path filename, const std::string &section_name, option option);
+		yaml(const std::filesystem::path filename, const std::string& section_name, option option);
 		~yaml();
 
 		DELETE_COPY_AND_MOVE_CONSTRUCTOR(yaml);
