@@ -30,12 +30,10 @@
 int MAIN_FUNC {
     
     {
-        GLT::config::init();
+        GLT::config::init();                        // TODO: load some basic settings
         GLT::plugin_manager::discover_plugins();
-
         GLT::plugin_manager::load_plugins(GLT::plugin_manager::load_phase::pre_engine_init);
-        GLT::logger::init("[$B$T:$J$E] [$B$R $L$X $Q - $I:$P:$G$E] $C$Z", true, GLT::util::get_executable_path() / "logs",
-            "gluttony.log", true);
+        GLT::logger::init("[$B$T:$J$E] [$B$R $L$X $Q - $I:$P:$G$E] $C$Z", true, GLT::util::get_executable_path() / "logs", "gluttony.log", true);
         GLT::logger::set_buffer_threshold(GLT::logger::severity::warn);
         GLT::logger::register_label_for_thread("main");
         GLT::crash_handler::attach();

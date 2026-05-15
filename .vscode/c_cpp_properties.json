@@ -3,20 +3,6 @@
     "configurations": [
         {
             "name": "Debug (linux-x86_64)",
-
-            // trying CMAKE_EXPORT_COMPILE_COMMANDS
-            // "includePath": [
-            //     "${workspaceFolder}/**",
-            //     "${workspaceFolder}/vendor/glm/**"
-            // ],
-            // "defines": [
-            //     "PLATFORM_LINUX",
-            //     "DEBUG",
-            //     "IMGUI_DEFINE_MATH_OPERATORS",
-            //     "RENDER_API_VULKAN",
-            //     "GLT_MODULE_NAME=DEFINED_IN_THE_CMAKE_BUILD_FILE_OF_THIS_PLUGIN"
-            // ],
-
             "compileCommands": "${workspaceFolder}/build/compile_commands.json",
             "includePath": [
                 "${workspaceFolder}/**",

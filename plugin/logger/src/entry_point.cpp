@@ -19,7 +19,7 @@ namespace GLT::logger_plugin {
 
     // STATIC VARIABLES ================================================================================================
 
-    static const char* dependencies[] = {  };
+    static const char* dependencies[] = { nullptr };
     static GLT::plugin_manager::plugin_descriptor descriptor = {
         .name                                   = GLT_MODULE_NAME,
         .phase                                  = GLT::plugin_manager::load_phase::pre_engine_init,

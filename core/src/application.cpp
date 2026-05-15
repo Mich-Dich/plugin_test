@@ -27,7 +27,7 @@ namespace GLT {
     application::application(int argc, char* argv[]) {
 
         GLT::plugin_manager::load_plugins(GLT::plugin_manager::load_phase::post_platform_file_init);
-        auto weak_win = GLT::plugin_manager::get_plugin_by_targeted_interface(plugin_manager::targeted_interface::window);
+        auto weak_win = GLT::plugin_manager::get_plugin(plugin_manager::targeted_interface::window);
         if (!weak_win.expired()) {
 
             auto p_weak_win = weak_win.lock();

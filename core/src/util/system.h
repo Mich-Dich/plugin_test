@@ -1,7 +1,6 @@
 
 #pragma once
 
-#include <sys/wait.h>
 #include "util/data_structures/data_types.h"
 
 // FORWARD DECLARATIONS ================================================================================================

@@ -136,12 +136,12 @@ namespace GLT::io {
 
 				for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
 
-					TCHAR szModName[MAX_PATH];
-					if (!GetModuleFileNameEx(hProcess, hMods[i], szModName, sizeof(szModName) / sizeof(TCHAR)))
-						continue;
+                    WCHAR szModName[MAX_PATH];
+                    if (!GetModuleFileNameExW(hProcess, hMods[i], szModName, MAX_PATH))
+                        continue;
 
-					if (wcscmp(szModName, filePath.c_str()) != 0) // Use wcscmp instead of _wcsicmp
-						continue;
+                    if (wcscmp(szModName, filePath.c_str()) != 0)
+                        continue;
 
 					std::wstring buffer = pe32.szExeFile;
 					int size_needed = WideCharToMultiByte(CP_UTF8, 0, &buffer[0], (int)buffer.size(), NULL, 0, NULL, NULL);

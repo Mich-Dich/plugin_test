@@ -67,6 +67,14 @@
 #include <cassert>
 #include <cstdlib>
 
+#if defined(PLATFORM_LINUX)
+    #include <sys/wait.h>
+#elif defined(PLATFORM_WINDOWS)
+    
+#else
+    #error unsupported platform
+#endif
+
 // glm math
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_RADIANS

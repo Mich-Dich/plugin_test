@@ -5,8 +5,6 @@
     #include <dlfcn.h>
 #elif defined(PLATFORM_WINDOWS)
     #include <windows.h>
-#else
-    #error unsupported platform
 #endif
 
 #include "util/io/serializer_yaml.h"
@@ -145,8 +143,8 @@ namespace GLT::plugin_manager {
 
     #elif defined(PLATFORM_WINDOWS)
 
-        void* load_library(const char* path, lib_load_mode /*mode*/) {
-            return (void*)LoadLibraryA(path);
+        void* load_library(const wchar_t* path, lib_load_mode /*mode*/) {
+            return (void*)LoadLibraryW(path);
         }
 
 
@@ -432,7 +430,7 @@ namespace GLT::plugin_manager {
     }
 
 
-    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin_by_name(const std::string& name) {
+    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin(const std::string& name) {
 
         for (auto& h : s_loaded_plugins) {
             if (h.name == name && h.instance) {
@@ -443,9 +441,9 @@ namespace GLT::plugin_manager {
     }
 
     
-    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin_by_targeted_interface(const targeted_interface targeted) {
+    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin(const targeted_interface targeted) {
 
-        return get_plugin_by_name(s_plugin_names_per_target_interface[targeted]);
+        return get_plugin(s_plugin_names_per_target_interface[targeted]);
     }
 
 }

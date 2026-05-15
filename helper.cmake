@@ -17,6 +17,43 @@
 include_guard(GLOBAL)
 
 # ----------------------------------------------------------------------
+# Helper: 
+# ----------------------------------------------------------------------
+function(compile_plugin TARGET_LIB_TYPE TARGET_NAME)
+    # Derive base plugin name (strip "_static" suffix if present)
+    string(REGEX REPLACE "_static$" "" BASE_NAME "${TARGET_NAME}")
+
+    # Cache the source list per directory to avoid double globbing
+    get_property(PLUGIN_SOURCES GLOBAL PROPERTY "${CMAKE_CURRENT_SOURCE_DIR}_SOURCES")
+    if(NOT PLUGIN_SOURCES)
+        file(GLOB_RECURSE PLUGIN_SOURCES
+            CONFIGURE_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cxx"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
+        )
+        set_property(GLOBAL PROPERTY "${CMAKE_CURRENT_SOURCE_DIR}_SOURCES" "${PLUGIN_SOURCES}")
+    endif()
+
+    add_library(${TARGET_NAME} ${TARGET_LIB_TYPE} ${PLUGIN_SOURCES})
+    target_compile_definitions(${TARGET_NAME} PRIVATE GLT_MODULE_NAME="${BASE_NAME}")
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/core/src/
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/
+    )
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/plugin/${BASE_NAME}"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/plugin/${BASE_NAME}"
+        OBJECT_OUTPUT_DIRECTORY  "${CMAKE_BINARY_DIR}/bin-int/$<CONFIG>/plugin/${BASE_NAME}"
+    )
+    target_link_options(${TARGET_NAME} PRIVATE -rdynamic)
+    # Link with any additional libraries passed as extra arguments
+    if(ARGN)
+        target_link_libraries(${TARGET_NAME} PRIVATE ${ARGN})
+    endif()
+endfunction()
+
+# ----------------------------------------------------------------------
 # Helper: format a byte count into a human-readable string (binary units)
 # ----------------------------------------------------------------------
 function(format_file_size SIZE_IN_BYTES OUT_VAR)

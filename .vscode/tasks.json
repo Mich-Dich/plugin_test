@@ -8,8 +8,7 @@
             "args": [
                 "--build",
                 "${workspaceFolder}/build",
-                "-j",
-                "16"
+                "--parallel"
             ],
             "group": {
                 "kind": "build",
@@ -17,6 +16,14 @@
             },
             "problemMatcher": "$gcc",
             "detail": "Build the Gluttony target in Debug mode"
+        },
+        {
+            "label": "CMake Clean Build (Debug)",
+            "type": "shell",
+            "command": "cmake -E remove_directory build && cmake -B build -DCMAKE_BUILD_TYPE=debug && cmake --build build --parallel",
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "detail": "Remove build dir, configure Debug, then build (cross-platform)"
         }
     ]
 }

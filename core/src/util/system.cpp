@@ -1,12 +1,7 @@
 
 #include "util/pch.h"
 
-#if defined(PLATFORM_WINDOWS)
-    #include <Windows.h>
-    #include <commdlg.h>
-    #include <iostream>
-    #include <tchar.h>              // For _T() macros
-#elif defined(PLATFORM_LINUX)
+#if defined(PLATFORM_LINUX)
     #include <sys/types.h>          // For pid_t
     #include <sys/wait.h>           // For waitpid
     #include <unistd.h>             // For fork, execv, etc.
@@ -19,8 +14,11 @@
     #include <sys/types.h>
     #include <sys/wait.h>
     #include <fcntl.h>
-#else
-    #error "OS not supported"
+#elif defined(PLATFORM_WINDOWS)
+    #include <Windows.h>
+    #include <commdlg.h>
+    #include <iostream>
+    #include <tchar.h>              // For _T() macros
 #endif
 
 #include "system.h"
@@ -51,7 +49,7 @@ namespace GLT::util {
     //
     bool run_program(const std::filesystem::path& path_to_exe, const char* cmd_args, bool open_console, const bool display_output_on_success, const bool display_output_on_failure, std::string* output) {
 
-        //LOG(Trace, "executing program at [{}]", path_to_exe.generic_string());
+        //LOG(trace, "executing program at [{}]", path_to_exe.generic_string());
 
         #if defined(PLATFORM_WINDOWS)
 
@@ -86,7 +84,7 @@ namespace GLT::util {
                 CloseHandle(processInfo.hProcess);
                 CloseHandle(processInfo.hThread);
             } else
-                LOG(Error, "Unsuccessfully started process: ", path_to_exe.generic_string());
+                LOG(error, "Unsuccessfully started process: ", path_to_exe.generic_string());
 
             return true;
 
@@ -180,8 +178,7 @@ namespace GLT::util {
 
         while (std::chrono::high_resolution_clock::now() < target_time) {       // busy-wait for the remaining time with minimal overhead
 
-            // std::this_thread::yield();                                          // yield to other threads to avoid completely starving the CPU
-            asm volatile("" ::: "memory");                                      // compiler barrier to prevent loop optimization
+            COMPILER_BARRIER
         }
     }
 

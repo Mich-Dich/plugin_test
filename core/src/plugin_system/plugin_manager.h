@@ -35,10 +35,10 @@ namespace GLT::plugin_manager {
 
     // Returns a weak pointer to a loaded plugin by name.
     // If the plugin isn't loaded, the returned pointer will be empty.
-    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin_by_name(const std::string& name);
+    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin(const std::string& name);
 
     
-    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin_by_targeted_interface(const targeted_interface targeted);
+    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin(const targeted_interface targeted);
 
     // TEMPLATE DECLARATION ============================================================================================
 

@@ -19,6 +19,8 @@
 ```bash
 git clone https://github.com/your-username/gluttony.git
 cd gluttony
+git submodule init
+git submodule update
 cmake -B build -DCMAKE_BUILD_TYPE=debug
 cmake --build build --parallel
 ./build/bin/debug/Gluttony
