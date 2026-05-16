@@ -28,7 +28,7 @@
 // FUNCTION IMPLEMENTATION =========================================================================================
 
 int MAIN_FUNC {
-    
+
     {
         GLT::config::init();                        // TODO: load some basic settings
         GLT::plugin_manager::discover_plugins();

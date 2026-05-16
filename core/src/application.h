@@ -39,7 +39,7 @@ namespace GLT {
     private:
         
         version                                             m_version{};
-        std::weak_ptr<GLT::platform::i_window_plugin>       mp_window{};
+        ref<GLT::platform::i_window_plugin>                 mp_window{};
         bool                                                m_running = true;
         util::interval_controller                           m_fps_controller{};
 

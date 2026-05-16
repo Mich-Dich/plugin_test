@@ -111,10 +111,10 @@ namespace GLT::plugin_manager {
     // STATIC VARIABLES ================================================================================================
 
     static bool                                                 s_shutdown = false;
-    static std::vector<plugin_handle>                           s_loaded_plugins {};
-    static std::vector<discovered_info>                         s_discovered {};
+    static std::vector<plugin_handle>                           s_loaded_plugins{};
+    static std::vector<discovered_info>                         s_discovered{};
     static std::unordered_map<targeted_interface, std::string>  s_plugin_names_per_target_interface{};
-    static std::filesystem::path                                s_config_path {};
+    static std::filesystem::path                                s_config_path{};
 
     // HELPER FUNCTIONS ===============================================================================================
 
@@ -376,7 +376,7 @@ namespace GLT::plugin_manager {
 
                         case plugin_load_error::none: {
                             it = pending.erase(it);
-                            progress = true;       // we made progress, keep trying others
+                            progress = true;                // we made progress, keep trying others
                             break;
                         }
                         case plugin_load_error::failed_to_load:                             [[fallthrough]];
@@ -391,7 +391,7 @@ namespace GLT::plugin_manager {
                             it = pending.erase(it);
                             break;
                         }
-                        default:                                                            break;
+                        default: break;
                     }
                 } else {
                     ++it;
@@ -400,8 +400,7 @@ namespace GLT::plugin_manager {
         }
 
         if (!pending.empty()) {
-            // Some plugins could not be loaded due to missing dependencies.
-            for (const auto& p : pending) {
+            for (const auto& p : pending) {                 // Some plugins could not be loaded due to missing dependencies.
                 LOG(error, "Plugin [%s] could not be loaded: unsatisfied dependencies or load error", p.name.c_str());
             }
         }
@@ -420,30 +419,34 @@ namespace GLT::plugin_manager {
             if (it->instance) {
                 it->instance->on_unload();
                 // The shared_ptr will call its custom deleter, which calls destroy_plugin and free_library.
-                it->instance.reset(); // triggers deletion and library close
+                it->instance.reset();                       // triggers deletion and library close
             } else if (it->module_handle) {
                 free_library(it->module_handle);
             }
         }
         s_loaded_plugins.clear();
-        s_discovered.clear(); // no longer needed
+        s_discovered.clear();                               // no longer needed
     }
 
 
-    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin(const std::string& name) {
+    [[nodiscard]] ref<i_plugin> get_plugin_base(const std::string& name) {
 
         for (auto& h : s_loaded_plugins) {
             if (h.name == name && h.instance) {
-                return std::weak_ptr<i_plugin>(h.instance);
+                return h.instance;
             }
         }
         return {};
     }
 
     
-    [[nodiscard]] std::weak_ptr<i_plugin> get_plugin(const targeted_interface targeted) {
+    [[nodiscard]] ref<i_plugin> get_plugin_base(const targeted_interface targeted) {
 
-        return get_plugin(s_plugin_names_per_target_interface[targeted]);
+        auto it = s_plugin_names_per_target_interface.find(targeted);
+        if (it != s_plugin_names_per_target_interface.end()) {
+            return get_plugin_base(it->second);
+        }
+        return {};
     }
 
 }

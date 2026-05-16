@@ -52,9 +52,7 @@ namespace GLT::glfw_platform {
         }
 
         
-        void destroy() {
-            mp_window.reset();
-        }
+        void destroy() { mp_window.reset(); }
 
         // --- queries ---
         bool should_close() const { 
@@ -104,7 +102,8 @@ namespace GLT::glfw_platform {
         // --- modifiers ---
         void show(bool visible) override {
 
-            if (mp_window) mp_window->show_window(visible);
+            if (mp_window)
+                mp_window->show_window(visible);
         }
 
 

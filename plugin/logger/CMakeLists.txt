@@ -9,6 +9,14 @@
 include(${CMAKE_SOURCE_DIR}/helper.cmake)
 set(PLUGIN_NAME                                     "logger")
 
+file(GLOB_RECURSE PLUGIN_SOURCES
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cxx"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
+)
+set_property(GLOBAL PROPERTY "${CMAKE_CURRENT_SOURCE_DIR}_SOURCES" "${PLUGIN_SOURCES}")
+
 # add libraries in both static and shared
 compile_plugin(SHARED ${PLUGIN_NAME})
 compile_plugin(STATIC ${PLUGIN_NAME}_static)

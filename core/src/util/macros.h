@@ -56,7 +56,7 @@ namespace GLT {
         // Force code to be inline
         #define FORCE_INLINE                                inline __attribute__((always_inline))
 
-        #define FORCE_INLINE_R                              inline __attribute__((always_inline)) [[nodiscard]]
+        #define FORCE_INLINE_R                              FORCE_INLINE [[nodiscard]]
 
         // Force code to NOT be inline
         #define FORCE_NOINLINE                              __attribute__((noinline))

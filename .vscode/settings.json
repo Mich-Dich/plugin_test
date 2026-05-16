@@ -9,11 +9,13 @@
   },
   "cSpell.words": [
     "denoising",
+    "glfw",
     "hlsl",
     "instrumentor",
     "spirv",
     "swapchain",
     "tlas",
+    "VFSPP",
     "vk_ray"
   ]
 }

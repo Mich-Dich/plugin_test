@@ -282,13 +282,13 @@ function(print_source_file_details)
         endif()
 
         # ---- Print detailed list at configure time ----
-        message(STATUS "--------------------------------------------------------------------------")
+        message(STATUS "-------------------------------------------------------------------------------------------------")
         message(STATUS " [${ARG_NAME}] source file details: ${num_files} source files, total size ${total_formatted}")
 
         foreach(line ${detail_lines})
             message(STATUS "${line}")
         endforeach()
-        message(STATUS "--------------------------------------------------------------------------")
+        message(STATUS "-------------------------------------------------------------------------------------------------")
     endif()
 
     # ---- Setup build-time messages if a target was specified ----
@@ -297,9 +297,17 @@ function(print_source_file_details)
             message(FATAL_ERROR "print_source_file_details: '${ARG_TARGET}' is not a valid target")
         endif()
 
-        # Post-build success message
+        # Compute required padding to make the message exactly 100 characters
+        string(LENGTH "${ARG_NAME}" name_len)
+        math(EXPR padding_len "100 - 30 - ${name_len}")   # 30 = length of "-- ========== " + " built successfully "
+        if(padding_len LESS 0)
+            set(padding_len 0)   # name too long, just no extra padding
+        endif()
+        string(REPEAT "=" ${padding_len} padding_equals)
+
+        # Post-build success message with computed padding
         add_custom_command(TARGET ${ARG_TARGET} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E echo "-- ========== ${ARG_NAME} built successfully ============================="
+            COMMAND ${CMAKE_COMMAND} -E echo "-- ====== ${ARG_NAME} built successfully ${padding_equals}"
         )
     endif()
 endfunction()

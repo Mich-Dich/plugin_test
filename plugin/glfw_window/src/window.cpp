@@ -53,7 +53,7 @@ namespace GLT::glfw_platform {
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);		// No Graphics API for now TODO: update later
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+		glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 		glfwWindowHint(GLFW_MAXIMIZED, (m_data.size_state == GLT::platform::window_size_state::fullscreen
 			|| m_data.size_state == GLT::platform::window_size_state::fullscreen_windowed) ? GLFW_TRUE : GLFW_FALSE);
 
