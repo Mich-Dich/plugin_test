@@ -17,13 +17,25 @@ namespace GLT::glfw_platform {
 
     // STATIC VARIABLES ================================================================================================
 
-    static const char* dependencies[] = { "logger" };
-    static GLT::plugin_manager::plugin_descriptor descriptor = {
+
+    static const char*                              needed_plugins_names[] = { 
+        
+        nullptr
+    };
+
+    static plugin_manager::targeted_interface       needed_plugins_interfaces[] = {
+        
+        plugin_manager::targeted_interface::logger 
+    };
+
+    static plugin_manager::plugin_descriptor descriptor = {
         .name                                   = GLT_MODULE_NAME,
-        .phase                                  = GLT::plugin_manager::load_phase::post_platform_file_init,
-        .target                                 = GLT::plugin_manager::targeted_interface::window,
-        .dependency_count                       = ARRAY_SIZE(dependencies),
-        .dependency_names                       = dependencies,
+        .phase                                  = plugin_manager::load_phase::post_platform_file_init,
+        .target                                 = plugin_manager::targeted_interface::window,
+        .dependency_names_count                 = ARRAY_SIZE(needed_plugins_names),
+        .dependency_names                       = needed_plugins_names,
+        .dependency_interface_count             = ARRAY_SIZE(needed_plugins_interfaces),
+        .dependency_interfaces                  = needed_plugins_interfaces,
     };
 
     // FUNCTION IMPLEMENTATION =========================================================================================

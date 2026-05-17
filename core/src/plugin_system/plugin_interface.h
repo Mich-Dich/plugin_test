@@ -25,7 +25,7 @@ namespace GLT::plugin_manager {
     enum class load_phase {
         
         // -- Earliest possible (nothing is ready) --
-        pre_engine_init = 0,          // Before even core logs, config, or memory.
+        earliest_possible = 0,        // first thing in main aafter searching for plugins
 
         // -- Core foundation --
         post_config_init,             // Config files and command line loaded.
@@ -94,10 +94,12 @@ namespace GLT::plugin_manager {
     // Descriptor that every plugin must export.
     struct plugin_descriptor {
         const char*                     name{};
-        load_phase                      phase{};                // is a [u16]
-        targeted_interface              target{};               // is a [u16]
-        int                             dependency_count{};
-        const char* const*              dependency_names{};     // array of C‑strings, nullptr if zero
+        load_phase                      phase{};
+        targeted_interface              target{};
+        int                             dependency_names_count{};           // number of name dependencies
+        const char* const*              dependency_names{};           // array of C‑strings, nullptr if zero
+        int                             dependency_interface_count{};
+        const targeted_interface*       dependency_interfaces{};
     };
 
     // STATIC VARIABLES ================================================================================================

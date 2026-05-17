@@ -12,22 +12,42 @@ namespace GLT {
 
     #if defined(__GNUC__)
 
-        #define IGNORE_UNUSED_VARIABLE_START                _Pragma("GCC diagnostic push")                              \
-                                                            _Pragma("GCC diagnostic ignored \"-Wunused-variable\"")
+        #define IGNORE_UNUSED_VARIABLE_START                                                                            \
+            _Pragma("GCC diagnostic push")                                                                              \
+            _Pragma("GCC diagnostic ignored \"-Wunused-variable\"")
 
-        #define IGNORE_UNUSED_VARIABLE_STOP                 _Pragma("GCC diagnostic pop")
+        #define IGNORE_UNUSED_VARIABLE_STOP                                                                             \
+            _Pragma("GCC diagnostic pop")
+
+        #define IGNORE_UNUSED_PARAMETER_START                                                                           \
+            _Pragma("GCC diagnostic push")                                                                              \
+            _Pragma("GCC diagnostic ignored \"-Wunused-parameter\"")
+
+        #define IGNORE_UNUSED_PARAMETER_STOP                                                                            \
+            _Pragma("GCC diagnostic pop")
 
     #elif defined(_MSC_VER)
 
-        #define IGNORE_UNUSED_VARIABLE_START                __pragma(warning(push, 0))                                  \
-                                                            __pragma(warning(disable: 4189))
+        #define IGNORE_UNUSED_VARIABLE_START                                                                            \
+            __pragma(warning(push, 0))                                                                                  \
+            __pragma(warning(disable: 4189))
 
-        #define IGNORE_UNUSED_VARIABLE_STOP                 __pragma(warning(pop))
+        #define IGNORE_UNUSED_VARIABLE_STOP                                                                             \
+            __pragma(warning(pop))
+
+        #define IGNORE_UNUSED_PARAMETER_START                                                                           \
+            __pragma(warning(push, 0))                                                                                  \
+            __pragma(warning(disable: 4100))   // C4100 = unreferenced formal parameter
+
+        #define IGNORE_UNUSED_PARAMETER_STOP                                                                            \
+            __pragma(warning(pop))
 
     #else
 
         #define IGNORE_UNUSED_VARIABLE_START
         #define IGNORE_UNUSED_VARIABLE_STOP
+        #define IGNORE_UNUSED_PARAMETER_START
+        #define IGNORE_UNUSED_PARAMETER_STOP
 
     #endif
 
@@ -145,7 +165,7 @@ namespace GLT {
     #define DEFAULT_GETTER_P(type, name)				    FORCE_INLINE_R type* get_##name() { return m_##name.get(); }
     #define DEFAULT_GETTER_REF(type, name)			        FORCE_INLINE_R type& get_##name##_ref() { return m_##name; }
     #define DEFAULT_GETTER_C(type, name)			        FORCE_INLINE_R type get_##name() const { return m_##name; }
-    #define DEFAULT_GETTER_CC(type, name)			        FORCE_INLINE_R const type get_##name() const { return m_##name; }
+    #define DEFAULT_GETTER_CC(type, name)			        FORCE_INLINE_R const type& get_##name() const { return m_##name; }
     #define DEFAULT_GETTER_POINTER(type, name)		        FORCE_INLINE_R type* get_##name##_pointer() { return &m_##name; }
 
     #define DEFAULT_GETTERS(type, name)				        DEFAULT_GETTER(type, name)					                \
@@ -156,7 +176,8 @@ namespace GLT {
                                                             DEFAULT_GETTER_POINTER(type, name)
 
     #define GETTER(type, func_name, var_name)		        FORCE_INLINE_R type get_##func_name() { return var_name; }
-    #define GETTER_C(type, func_name, var_name)		        FORCE_INLINE_R const type get_##func_name() const { return var_name; }
+    #define GETTER_C(type, func_name, var_name)		        FORCE_INLINE_R type get_##func_name() const { return var_name; }
+    #define GETTER_CC(type, func_name, var_name)		    FORCE_INLINE_R const type& get_##func_name() const { return var_name; }
 
     // setters ---------------------------------------------------------------------------------------------------------
 

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <filesystem>
+#include "util/macros.h"
 
 // FORWARD DECLARATIONS ================================================================================================
 
@@ -50,6 +51,7 @@ namespace GLT::vfs {
     using is_directory_func = bool (*)(const std::filesystem::path& path);
     using is_regular_file_func = bool (*)(const std::filesystem::path& path);
     using create_directory_func = bool (*)(const std::filesystem::path& path);
+    using create_directories_func = bool (*)(const std::filesystem::path& path);
     using remove_func = bool (*)(const std::filesystem::path& path);
     using rename_func = bool (*)(const std::filesystem::path& old_path, const std::filesystem::path& new_path);
     using copy_file_func = bool (*)(const std::filesystem::path& from, const std::filesystem::path& to, bool overwrite);
@@ -65,23 +67,24 @@ namespace GLT::vfs {
     using close_file_func = void (*)(file_handle handle);
 
     struct vfs_functions {
-        exists_func             exists;
-        is_directory_func       is_directory;
-        is_regular_file_func    is_regular_file;
-        create_directory_func   create_directory;
-        remove_func             remove;
-        rename_func             rename;
-        copy_file_func          copy_file;
-        file_size_func          file_size;
-        list_directory_func     list_directory;
-        read_text_file_func     read_text_file;
-        write_text_file_func    write_text_file;
-        open_file_func          open_file;
-        read_file_func          read_file;
-        write_file_func         write_file;
-        seek_file_func          seek_file;
-        tell_file_func          tell_file;
-        close_file_func         close_file;
+        exists_func                 exists;
+        is_directory_func           is_directory;
+        is_regular_file_func        is_regular_file;
+        create_directory_func       create_directory;
+        create_directories_func     create_directories;
+        remove_func                 remove;
+        rename_func                 rename;
+        copy_file_func              copy_file;
+        file_size_func              file_size;
+        list_directory_func         list_directory;
+        read_text_file_func         read_text_file;
+        write_text_file_func        write_text_file;
+        open_file_func              open_file;
+        read_file_func              read_file;
+        write_file_func             write_file;
+        seek_file_func              seek_file;
+        tell_file_func              tell_file;
+        close_file_func             close_file;
     };
 
     // STATIC VARIABLES ================================================================================================
@@ -113,6 +116,10 @@ namespace GLT::vfs {
 
     // Creates a directory. Returns true on success.
     bool create_directory(const std::filesystem::path& path);
+
+
+    // Creates a directory. Returns true on success.
+    bool create_directories(const std::filesystem::path& path);
 
 
     // Removes a file or an empty directory. Returns true on success.

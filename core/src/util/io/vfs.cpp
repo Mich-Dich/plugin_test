@@ -13,7 +13,16 @@ namespace GLT::vfs {
 
     // TYPES ===========================================================================================================
 
-    static filesystem_type      s_filesystem_type = filesystem_type::native;
+    
+    #if defined(BUILD_GAME)
+
+        static filesystem_type      s_filesystem_type = filesystem_type::zip;
+
+    #else
+
+        static filesystem_type      s_filesystem_type = filesystem_type::native;
+        
+    #endif
 
     // STATIC VARIABLES ================================================================================================
 
@@ -40,6 +49,11 @@ namespace GLT::vfs {
 
     bool default_create_directory(const std::filesystem::path& path) {
         return std::filesystem::create_directory(path);
+    }
+
+
+    bool default_create_directories(const std::filesystem::path& path) {
+        return std::filesystem::create_directories(path);
     }
 
 
@@ -207,6 +221,7 @@ namespace GLT::vfs {
         default_is_directory,
         default_is_regular_file,
         default_create_directory,
+        default_create_directories,
         default_remove,
         default_rename,
         default_copy_file,
@@ -250,6 +265,12 @@ namespace GLT::vfs {
     bool create_directory(const std::filesystem::path& path) {
 
         return g_vfs.create_directory(path);
+    }
+
+        
+    bool create_directories(const std::filesystem::path& path) {
+
+        return g_vfs.create_directories(path);
     }
 
 

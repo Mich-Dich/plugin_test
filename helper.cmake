@@ -36,20 +36,26 @@ function(compile_plugin TARGET_LIB_TYPE TARGET_NAME)
     endif()
 
     add_library(${TARGET_NAME} ${TARGET_LIB_TYPE} ${PLUGIN_SOURCES})
-    target_compile_definitions(${TARGET_NAME} PRIVATE GLT_MODULE_NAME="${BASE_NAME}")
-    target_include_directories(${TARGET_NAME} PRIVATE
+    target_compile_definitions(${TARGET_NAME}       PRIVATE GLT_MODULE_NAME="${BASE_NAME}")
+    target_include_directories(${TARGET_NAME}       PRIVATE
         ${CMAKE_SOURCE_DIR}/core/src/
         ${CMAKE_CURRENT_SOURCE_DIR}/src/
     )
-    set_target_properties(${TARGET_NAME} PROPERTIES
+    set_target_properties(${TARGET_NAME}            PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/plugin/${BASE_NAME}"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>/plugin/${BASE_NAME}"
         OBJECT_OUTPUT_DIRECTORY  "${CMAKE_BINARY_DIR}/bin-int/$<CONFIG>/plugin/${BASE_NAME}"
     )
-    target_link_options(${TARGET_NAME} PRIVATE -rdynamic)
+    target_link_options(${TARGET_NAME}              PRIVATE -rdynamic)
     # Link with any additional libraries passed as extra arguments
     if(ARGN)
-        target_link_libraries(${TARGET_NAME} PRIVATE ${ARGN})
+        target_link_libraries(${TARGET_NAME}        PRIVATE ${ARGN})
+    endif()
+
+    if(MSVC)
+        target_compile_options(${PLUGIN_NAME}       PRIVATE /W4)
+    else()
+        target_compile_options(${PLUGIN_NAME}       PRIVATE -Wall -Wextra -Wpedantic)
     endif()
 endfunction()
 

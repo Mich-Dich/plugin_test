@@ -52,6 +52,7 @@ if(NOT EXISTS "${VFSPP_DIR}")
 endif()
 
 add_subdirectory("${VFSPP_DIR}" "${CMAKE_BINARY_DIR}/vfspp_build")
+target_include_directories(vfspp SYSTEM INTERFACE "$<BUILD_INTERFACE:${VFSPP_DIR}/include>")    # Mark as SYSTEM to suppress warnings
 
 # compile the plugin
 compile_plugin(SHARED ${PLUGIN_NAME})
@@ -65,6 +66,8 @@ target_compile_definitions(${PLUGIN_NAME}   PUBLIC VFSPP_MT_SUPPORT_ENABLED)
 target_link_libraries(${PLUGIN_NAME}_static        PUBLIC vfspp)
 target_compile_features(${PLUGIN_NAME}_static      PUBLIC cxx_std_20)
 target_compile_definitions(${PLUGIN_NAME}_static   PUBLIC VFSPP_MT_SUPPORT_ENABLED)
+
+
 
 print_source_file_details(
     SOURCES         ${PLUGIN_SOURCES}

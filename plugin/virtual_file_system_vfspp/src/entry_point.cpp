@@ -19,13 +19,24 @@ namespace GLT::vfs_plugin {
 
     // STATIC VARIABLES ================================================================================================
 
-    static const char* dependencies[] = { nullptr };
-    static GLT::plugin_manager::plugin_descriptor descriptor = {
+    static const char*                              needed_plugins_names[] = { 
+        
+        nullptr
+    };
+
+    static plugin_manager::targeted_interface       needed_plugins_interfaces[] = {
+
+        plugin_manager::targeted_interface::none
+    };
+
+    static plugin_manager::plugin_descriptor descriptor = {
         .name                                   = GLT_MODULE_NAME,
-        .phase                                  = GLT::plugin_manager::load_phase::pre_engine_init,
-        .target                                 = GLT::plugin_manager::targeted_interface::virtual_file_system,
-        .dependency_count                       = ARRAY_SIZE(dependencies),
-        .dependency_names                       = dependencies,
+        .phase                                  = plugin_manager::load_phase::earliest_possible,
+        .target                                 = plugin_manager::targeted_interface::virtual_file_system,
+        .dependency_names_count                 = ARRAY_SIZE(needed_plugins_names),
+        .dependency_names                       = needed_plugins_names,
+        .dependency_interface_count             = ARRAY_SIZE(needed_plugins_interfaces),
+        .dependency_interfaces                  = needed_plugins_interfaces,
     };
 
     // FUNCTION IMPLEMENTATION =========================================================================================
@@ -56,6 +67,7 @@ namespace GLT::vfs_plugin {
                 .is_directory       = &is_directory_impl,
                 .is_regular_file    = &is_regular_file_impl,
                 .create_directory   = &create_directory_impl,
+                .create_directories = &create_directories_impl,
                 .remove             = &remove_impl,
                 .rename             = &rename_impl,
                 .copy_file          = &copy_file_impl,

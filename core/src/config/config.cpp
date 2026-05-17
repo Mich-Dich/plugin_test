@@ -1,8 +1,6 @@
 
 #include "util/pch.h"
 
-#include "util/io/io.h"
-
 #include "config.h"
 
 // FORWARD DECLARATIONS ================================================================================================
@@ -41,7 +39,7 @@ namespace GLT::config {
     void init() {
 
         const std::filesystem::path root_dir = GLT::util::get_executable_path();
-        io::create_directory(root_dir / CONFIG_DIR);
+        vfs::create_directory(root_dir / CONFIG_DIR);
         LOG(trace, "Checking Engine config files at [{}]", (root_dir / CONFIG_DIR).string());
         for (int i = 0; i <= static_cast<int>(type::input); ++i) {
 
@@ -56,7 +54,7 @@ namespace GLT::config {
 
     void create_config_files_for_project(const std::filesystem::path& project_dir) {
 
-        io::create_directory(project_dir / CONFIG_DIR);
+        vfs::create_directory(project_dir / CONFIG_DIR);
         LOG(trace, "Checking project config files at [{}]", project_dir / CONFIG_DIR);
         for (int i = 0; i <= static_cast<int>(type::input); ++i) {
 

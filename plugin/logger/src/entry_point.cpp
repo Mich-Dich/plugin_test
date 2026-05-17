@@ -19,13 +19,24 @@ namespace GLT::logger_plugin {
 
     // STATIC VARIABLES ================================================================================================
 
-    static const char* dependencies[] = { nullptr };
-    static GLT::plugin_manager::plugin_descriptor descriptor = {
+    static const char*                              needed_plugins_names[] = { 
+        
+        nullptr
+    };
+
+    static plugin_manager::targeted_interface       needed_plugins_interfaces[] = {
+        
+        plugin_manager::targeted_interface::virtual_file_system 
+    };
+
+    static plugin_manager::plugin_descriptor descriptor = {
         .name                                   = GLT_MODULE_NAME,
-        .phase                                  = GLT::plugin_manager::load_phase::pre_engine_init,
-        .target                                 = GLT::plugin_manager::targeted_interface::logger,
-        .dependency_count                       = ARRAY_SIZE(dependencies),
-        .dependency_names                       = dependencies,
+        .phase                                  = plugin_manager::load_phase::earliest_possible,
+        .target                                 = plugin_manager::targeted_interface::logger,
+        .dependency_names_count                 = ARRAY_SIZE(needed_plugins_names),
+        .dependency_names                       = needed_plugins_names,
+        .dependency_interface_count             = ARRAY_SIZE(needed_plugins_interfaces),
+        .dependency_interfaces                  = needed_plugins_interfaces,
     };
 
     // FUNCTION IMPLEMENTATION =========================================================================================
@@ -62,7 +73,7 @@ namespace GLT::logger_plugin {
             // take over messages from before logger attachment
             GLT::logger::register_label_for_thread("main");             // assume label will remain the same
             std::vector<GLT::logger::message_data> previous_messages = GLT::logger::drain_log_buffer(true);
-            for (const auto msg : previous_messages)
+            for (const auto& msg : previous_messages)
                 GLT::logger_plugin::log_msg_internal(msg.msg_sev, msg.file_name, msg.function_name, msg.line,
                     msg.module_name, msg.thread_id, msg.message);       // Only called here directly because I know what im doing
 

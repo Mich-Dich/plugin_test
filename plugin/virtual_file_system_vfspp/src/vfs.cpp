@@ -4,8 +4,6 @@
 #include <shared_mutex>
 #include <cstring>
 
-#include <util/util.h>
-
 #include "vfs.h"
 
 // FORWARD DECLARATIONS ================================================================================================
@@ -21,11 +19,11 @@ namespace GLT::vfs_plugin {
 
     // STATIC VARIABLES ================================================================================================
 
-    static std::unique_ptr<vfspp::VirtualFileSystem> g_vfs;
-    static std::string g_nativeBasePath;                 // resolved real path of mounted "/"
-    static std::unordered_map<u64, vfspp::IFilePtr> g_openFiles;
-    static std::shared_mutex g_handleMutex;
-    static u64 g_nextHandle = 1;
+    static std::unique_ptr<vfspp::VirtualFileSystem>        g_vfs;
+    static std::string                                      g_native_base_path;                 // resolved real path of mounted "/"
+    static std::unordered_map<u64, vfspp::IFilePtr>         g_open_files;
+    static std::shared_mutex                                g_handle_mutex;
+    static u64                                              g_next_handle = 1;
 
     // FUNCTION IMPLEMENTATION =========================================================================================
         
@@ -54,23 +52,36 @@ namespace GLT::vfs_plugin {
 
         if (g_vfs)
             return true;
-
-        auto used_type = GLT::vfs::get_filesystem_type();
-
+            
         g_vfs = std::make_unique<vfspp::VirtualFileSystem>();
+            
+        const auto used_type = GLT::vfs::get_filesystem_type();
+        switch (used_type) {
+            default:                                    [[fallthrough]];
+            case GLT::vfs::filesystem_type::native: {
 
-        // Determine a base path – here we use the current working directory.
-        // TODO: read a config value.
-        std::filesystem::path base = std::filesystem::current_path();
-        g_nativeBasePath = base.generic_string();
+                // Determine a base path – here we use the current working directory.
+                // TODO: read a config value.
+                std::filesystem::path base = std::filesystem::current_path();
+                g_native_base_path = base.generic_string();
 
-        // Create and mount a native filesystem at alias "/"
-        auto nativeFS = std::make_shared<vfspp::NativeFileSystem>("/", g_nativeBasePath);
-        if (!nativeFS->Initialize()) {
-            g_vfs.reset();
-            return false;
+                // Create and mount a native filesystem at alias "/"
+                auto native_fs = std::make_shared<vfspp::NativeFileSystem>("/", g_native_base_path);
+                VALIDATE(native_fs->Initialize(), g_vfs.reset(); return false, "", "")
+                g_vfs->AddFileSystem("/", native_fs);
+                break;
+            }   
+            case GLT::vfs::filesystem_type::memory: {
+
+                ASSERT(false, "", "Memory filesystem not yet implemented")
+                break;
+            }
+            case GLT::vfs::filesystem_type::zip: {
+
+                ASSERT(false, "", "Zip filesystem not yet implemented")
+                break;
+            }
         }
-        g_vfs->AddFileSystem("/", nativeFS);
 
         return true;
     }
@@ -80,29 +91,29 @@ namespace GLT::vfs_plugin {
 
         // Close all remaining open handles
         {
-            std::unique_lock lock(g_handleMutex);
-            for (auto& [handle, file] : g_openFiles) {
+            std::unique_lock lock(g_handle_mutex);
+            for (auto& [handle, file] : g_open_files) {
                 if (file && file->IsOpened())
                     file->Close();
             }
-            g_openFiles.clear();
+            g_open_files.clear();
         }
         g_vfs.reset();
-        g_nativeBasePath.clear();
+        g_native_base_path.clear();
     }
 
     // ----- helper: resolve a virtual path to a native path -----------------------------------------------------------
-    // For a simple setup where "/" maps to g_nativeBasePath, we just strip the leading '/'
-    static std::filesystem::path ToNativePath(const std::filesystem::path& virtualPath) {
+    // For a simple setup where "/" maps to g_native_base_path, we just strip the leading '/'
+    static std::filesystem::path to_native_path(const std::filesystem::path& virtual_path) {
 
-        std::string v = virtualPath.generic_string();
+        std::string v = virtual_path.generic_string();
         if (v.empty() || v == "/")
-            return g_nativeBasePath;
+            return g_native_base_path;
 
         if (v.front() == '/')
             v.erase(0, 1);
 
-        return std::filesystem::path(g_nativeBasePath) / v;
+        return std::filesystem::path(g_native_base_path) / v;
     }
 
     // ----- core VFS callback implementations -------------------------------------------------------------------------
@@ -118,32 +129,38 @@ namespace GLT::vfs_plugin {
     bool is_directory_impl(const std::filesystem::path& path) {
 
         // Use std::filesystem on the native path because vfspp does not expose is_directory
-        return std::filesystem::is_directory(ToNativePath(path));
+        return std::filesystem::is_directory(to_native_path(path));
     }
 
 
     bool is_regular_file_impl(const std::filesystem::path& path) {
 
-        return std::filesystem::is_regular_file(ToNativePath(path));
+        return std::filesystem::is_regular_file(to_native_path(path));
     }
 
 
     bool create_directory_impl(const std::filesystem::path& path) {
 
-        return std::filesystem::create_directory(ToNativePath(path));
+        return std::filesystem::create_directory(to_native_path(path));
+    }
+
+
+    bool default_create_directories(const std::filesystem::path& path) {
+        
+        return std::filesystem::create_directories(path);
     }
 
 
     bool remove_impl(const std::filesystem::path& path) {
 
-        return std::filesystem::remove(ToNativePath(path));
+        return std::filesystem::remove(to_native_path(path));
     }
 
 
     bool rename_impl(const std::filesystem::path& old_path, const std::filesystem::path& new_path) {
 
         std::error_code ec;
-        std::filesystem::rename(ToNativePath(old_path), ToNativePath(new_path), ec);
+        std::filesystem::rename(to_native_path(old_path), to_native_path(new_path), ec);
         return !ec;
     }
 
@@ -152,14 +169,14 @@ namespace GLT::vfs_plugin {
 
         std::filesystem::copy_options opt = overwrite ? std::filesystem::copy_options::overwrite_existing
                                                       : std::filesystem::copy_options::skip_existing;
-        return std::filesystem::copy_file(ToNativePath(from), ToNativePath(to), opt);
+        return std::filesystem::copy_file(to_native_path(from), to_native_path(to), opt);
     }
 
 
     u64 file_size_impl(const std::filesystem::path& path) {
 
         std::error_code ec;
-        auto sz = std::filesystem::file_size(ToNativePath(path), ec);
+        auto sz = std::filesystem::file_size(to_native_path(path), ec);
         return ec ? 0 : sz;
     }
 
@@ -168,7 +185,7 @@ namespace GLT::vfs_plugin {
 
         std::vector<std::filesystem::path> result;
         std::error_code ec;
-        for (auto& entry : std::filesystem::directory_iterator(ToNativePath(path), ec)) {
+        for (auto& entry : std::filesystem::directory_iterator(to_native_path(path), ec)) {
             result.push_back(entry.path());
         }
         return result;
@@ -177,7 +194,7 @@ namespace GLT::vfs_plugin {
 
     std::string read_text_file_impl(const std::filesystem::path& path) {
 
-        std::ifstream file(ToNativePath(path), std::ios::binary | std::ios::ate);
+        std::ifstream file(to_native_path(path), std::ios::binary | std::ios::ate);
         if (!file.is_open())
             return {};
         std::streamsize size = file.tellg();
@@ -191,7 +208,7 @@ namespace GLT::vfs_plugin {
 
     bool write_text_file_impl(const std::filesystem::path& path, const std::string& content) {
 
-        std::ofstream file(ToNativePath(path), std::ios::binary | std::ios::trunc);
+        std::ofstream file(to_native_path(path), std::ios::binary | std::ios::trunc);
         if (!file.is_open())
             return false;
         file.write(content.data(), content.size());
@@ -210,18 +227,18 @@ namespace GLT::vfs_plugin {
         if (!file || !file->IsOpened())
             return 0;
 
-        std::unique_lock lock(g_handleMutex);
-        u64 handle = g_nextHandle++;
-        g_openFiles[handle] = file;
+        std::unique_lock lock(g_handle_mutex);
+        u64 handle = g_next_handle++;
+        g_open_files[handle] = file;
         return handle;
     }
 
 
     size_t read_file_impl(u64 handle, void* buffer, size_t size, size_t offset) {
 
-        std::shared_lock lock(g_handleMutex);
-        auto it = g_openFiles.find(handle);
-        if (it == g_openFiles.end())
+        std::shared_lock lock(g_handle_mutex);
+        auto it = g_open_files.find(handle);
+        if (it == g_open_files.end())
             return 0;
         auto& file = it->second;
         lock.unlock();
@@ -239,9 +256,9 @@ namespace GLT::vfs_plugin {
 
     size_t write_file_impl(u64 handle, const void* data, size_t size, size_t offset) {
 
-        std::shared_lock lock(g_handleMutex);
-        auto it = g_openFiles.find(handle);
-        if (it == g_openFiles.end())
+        std::shared_lock lock(g_handle_mutex);
+        auto it = g_open_files.find(handle);
+        if (it == g_open_files.end())
             return 0;
         auto& file = it->second;
         lock.unlock();
@@ -259,9 +276,9 @@ namespace GLT::vfs_plugin {
 
     bool seek_file_impl(u64 handle, i64 offset, int origin) {
 
-        std::shared_lock lock(g_handleMutex);
-        auto it = g_openFiles.find(handle);
-        if (it == g_openFiles.end())
+        std::shared_lock lock(g_handle_mutex);
+        auto it = g_open_files.find(handle);
+        if (it == g_open_files.end())
             return false;
         auto& file = it->second;
         lock.unlock();
@@ -283,9 +300,9 @@ namespace GLT::vfs_plugin {
 
     u64 tell_file_impl(u64 handle) {
 
-        std::shared_lock lock(g_handleMutex);
-        auto it = g_openFiles.find(handle);
-        if (it == g_openFiles.end())
+        std::shared_lock lock(g_handle_mutex);
+        auto it = g_open_files.find(handle);
+        if (it == g_open_files.end())
             return 0;
         auto& file = it->second;
         lock.unlock();
@@ -299,12 +316,12 @@ namespace GLT::vfs_plugin {
 
     void close_file_impl(u64 handle) {
 
-        std::unique_lock lock(g_handleMutex);
-        auto it = g_openFiles.find(handle);
-        if (it == g_openFiles.end())
+        std::unique_lock lock(g_handle_mutex);
+        auto it = g_open_files.find(handle);
+        if (it == g_open_files.end())
             return;
         auto file = it->second;
-        g_openFiles.erase(it);
+        g_open_files.erase(it);
         lock.unlock();
 
         if (file && file->IsOpened())

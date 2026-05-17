@@ -5,7 +5,12 @@
 #include <string>
 #include <vector>
 #include <thread>
+
 #include <util/data_structures/data_types.h>
+#include <util/core_config.h>
+#include <util/macros.h>
+#include <util/io/logger.h>
+#include <util/io/vfs.h>
 
 // FORWARD DECLARATIONS ================================================================================================
 
@@ -41,6 +46,9 @@ namespace GLT::vfs_plugin {
     
     
     bool create_directory_impl(const std::filesystem::path& path);
+
+
+    bool create_directories_impl(const std::filesystem::path& path);
     
     
     bool remove_impl(const std::filesystem::path& path);

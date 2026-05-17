@@ -79,6 +79,7 @@ namespace GLT::plugin_manager {
         load_phase                                              phase;
         targeted_interface                                      target{};               // is a [u16]
         std::vector<std::string>                                dependencies;
+        std::vector<targeted_interface>                         interface_dependencies;
     };
 
 
@@ -237,6 +238,7 @@ namespace GLT::plugin_manager {
     // Checks if all dependencies (by name) are already loaded.
     static bool dependencies_satisfied(const discovered_info& info) {
 
+        // check name dependencies
         for (const auto& dep : info.dependencies) {
             bool found = false;
             for (const auto& loaded : s_loaded_plugins) {
@@ -247,6 +249,27 @@ namespace GLT::plugin_manager {
             }
             if (!found) return false;
         }
+
+        // check interface dependencies
+        for (auto iface_dep : info.interface_dependencies) {
+
+            // Is there any loaded plugin that provides this interface?
+            auto it = s_plugin_names_per_target_interface.find(iface_dep);
+            if (it == s_plugin_names_per_target_interface.end())
+                return false;   // no plugin configured for this interface at all
+
+            const std::string& provider_name = it->second;
+            bool provider_loaded = false;
+            for (const auto& loaded : s_loaded_plugins) {
+                if (loaded.name == provider_name) {
+                    provider_loaded = true;
+                    break;
+                }
+            }
+            if (!provider_loaded)
+                return false;
+        }
+
         return true;
     }
 
@@ -336,10 +359,17 @@ namespace GLT::plugin_manager {
                 .phase  = desc->phase,
                 .target = iface,
             };
-            info.dependencies.reserve(desc->dependency_count);
-            for (int i = 0; i < desc->dependency_count; ++i) {
+            
+            info.dependencies.reserve(desc->dependency_names_count);                          // Name dependencies
+            for (int i = 0; i < desc->dependency_names_count; ++i) {
                 if (desc->dependency_names && desc->dependency_names[i])
                     info.dependencies.emplace_back(desc->dependency_names[i]);
+            }
+
+            info.interface_dependencies.reserve(desc->dependency_interface_count);      // Interface dependencies
+            for (int i = 0; i < desc->dependency_interface_count; ++i) {
+                if (desc->dependency_interfaces)
+                    info.interface_dependencies.push_back(desc->dependency_interfaces[i]);
             }
 
             s_discovered.push_back(std::move(info));

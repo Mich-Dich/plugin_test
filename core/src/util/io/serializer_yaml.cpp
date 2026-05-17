@@ -1,20 +1,30 @@
 
 #include "util/pch.h"
-
-#include "util/io/io.h"
-
 #include "serializer_yaml.h"
+
+
+// FORWARD DECLARATIONS ================================================================================================
 
 namespace GLT::serializer {
 
-	// ================================================== yaml ==================================================
+	// CONSTANTS =======================================================================================================
+
+	// MACROS ==========================================================================================================
+
+	// TYPES ===========================================================================================================
+
+	// STATIC VARIABLES ================================================================================================
+
+	// FUNCTION IMPLEMENTATION =========================================================================================
+
+	// CLASS IMPLEMENTATION ============================================================================================
 
 	yaml::yaml(const std::filesystem::path filename, const std::string& section_name, option option)
 		: m_filename(filename), m_name(section_name), m_option(option) {
 
 		// ASSERT(std::filesystem::is_regular_file(filename), "", "Provided filepath is not a file [" << filename.generic_string() << "]");
 		std::filesystem::path path = filename.parent_path();
-		ASSERT(io::create_directory(path), "", "Could not create file-path");
+		ASSERT(vfs::create_directory(path), "", "Could not create file-path");
 
 		// make shure the file exists
 		if (!std::filesystem::exists(m_filename)) {
@@ -40,6 +50,99 @@ namespace GLT::serializer {
 			serialize();
 	}
 
+	// CLASS PUBLIC ====================================================================================================
+
+	yaml& yaml::sub_section(const std::string& section_name, std::function<void(serializer::yaml&)> sub_section_function) {
+
+		m_level_of_indention++;
+
+		if (m_option == serializer::option::save_to_file) {
+
+			m_file_content << util::add_spaces(m_level_of_indention + static_cast<u32>(m_vector_func_index -1), NUM_OF_INDENTING_SPACES) << section_name << ":\n";
+			sub_section_function(*this);
+
+		} else {	// load from file
+
+			// buffer [m_key_value_pares] for duration of function
+			std::unordered_map<std::string, std::string> key_value_pares_buffer = m_key_value_pares;
+			m_key_value_pares = {};
+
+			// buffer [m_file_content] for duration of function
+			std::stringstream file_content_buffer;
+			file_content_buffer << m_file_content.str();
+			m_file_content = {};
+
+			// deserialize content of subsections
+			// const u32 section_indentation = 0;
+			bool found_section = false;
+			std::string line;
+			//m_level_of_indention++;
+			while (std::getline(file_content_buffer, line)) {
+
+				// skip empty lines or comments
+				if (line.empty() || line.front() == '#')
+					continue;
+
+				// if line contains desired section enter inner-loop
+				//   has incorrect indentaion											ends NOT with double-point
+				if ((util::measure_indentation(line, NUM_OF_INDENTING_SPACES) != 0) || (line.back() != ':'))
+					continue;
+
+				// remove leading and trailing whitespace
+				auto trimmed = line;
+				trimmed.erase(trimmed.begin(), std::find_if(trimmed.begin(), trimmed.end(), [](unsigned char ch) {
+					return !std::isspace(ch);
+				}));
+				trimmed.erase(std::find_if(trimmed.rbegin(), trimmed.rend(), [](unsigned char ch) {
+					return !std::isspace(ch);
+				}).base(), trimmed.end());
+
+				// Remove the trailing colon
+				if (!trimmed.empty() && trimmed.back() == ':')
+					trimmed.pop_back();
+
+				if (trimmed != section_name)		// has incorrect section_name
+					continue;
+
+				found_section = true;
+
+				while (std::getline(file_content_buffer, line)) {
+
+					if (util::measure_indentation(line, NUM_OF_INDENTING_SPACES) < m_level_of_indention)	// exit inner loop after section is finished
+						break;
+
+					line = line.substr(NUM_OF_INDENTING_SPACES);
+
+					//  more indented																		beginning of new sub-section
+					if (util::measure_indentation(line, NUM_OF_INDENTING_SPACES) > m_level_of_indention -1 || line.back() == ':' || line.front() == '-') {
+
+						m_file_content << line << "\n";
+						continue;
+					}
+
+					std::string key, value;
+					extract_key_value(key, value, line);
+					m_key_value_pares[key] = value;
+				}
+
+				if (found_section)
+					break;
+			}
+
+			if (found_section)
+				sub_section_function(*this);
+
+			m_key_value_pares = key_value_pares_buffer;
+			m_file_content << file_content_buffer.str();
+		}
+
+		m_level_of_indention--;
+		return *this;
+	}
+
+	// CLASS PROTECTED =================================================================================================
+
+	// CLASS PRIVATE ===================================================================================================
 
 	void yaml::serialize() {
 
@@ -146,95 +249,6 @@ namespace GLT::serializer {
 
 		if (!value.empty() && value.front() == ' ')
 			value.erase(0, 1);
-	}
-
-
-	yaml& yaml::sub_section(const std::string& section_name, std::function<void(serializer::yaml&)> sub_section_function) {
-
-		m_level_of_indention++;
-
-		if (m_option == serializer::option::save_to_file) {
-
-			m_file_content << util::add_spaces(m_level_of_indention + static_cast<u32>(m_vector_func_index -1), NUM_OF_INDENTING_SPACES) << section_name << ":\n";
-			sub_section_function(*this);
-
-		} else {	// load from file
-
-			// buffer [m_key_value_pares] for duration of function
-			std::unordered_map<std::string, std::string> key_value_pares_buffer = m_key_value_pares;
-			m_key_value_pares = {};
-
-			// buffer [m_file_content] for duration of function
-			std::stringstream file_content_buffer;
-			file_content_buffer << m_file_content.str();
-			m_file_content = {};
-
-			// deserialize content of subsections
-			// const u32 section_indentation = 0;
-			bool found_section = false;
-			std::string line;
-			//m_level_of_indention++;
-			while (std::getline(file_content_buffer, line)) {
-
-				// skip empty lines or comments
-				if (line.empty() || line.front() == '#')
-					continue;
-
-				// if line contains desired section enter inner-loop
-				//   has incorrect indentaion											ends NOT with double-point
-				if ((util::measure_indentation(line, NUM_OF_INDENTING_SPACES) != 0) || (line.back() != ':'))
-					continue;
-
-				// remove leading and trailing whitespace
-				auto trimmed = line;
-				trimmed.erase(trimmed.begin(), std::find_if(trimmed.begin(), trimmed.end(), [](unsigned char ch) {
-					return !std::isspace(ch);
-				}));
-				trimmed.erase(std::find_if(trimmed.rbegin(), trimmed.rend(), [](unsigned char ch) {
-					return !std::isspace(ch);
-				}).base(), trimmed.end());
-
-				// Remove the trailing colon
-				if (!trimmed.empty() && trimmed.back() == ':')
-					trimmed.pop_back();
-
-				if (trimmed != section_name)		// has incorrect section_name
-					continue;
-
-				found_section = true;
-
-				while (std::getline(file_content_buffer, line)) {
-
-					if (util::measure_indentation(line, NUM_OF_INDENTING_SPACES) < m_level_of_indention)	// exit inner loop after section is finished
-						break;
-
-					line = line.substr(NUM_OF_INDENTING_SPACES);
-
-					//  more indented																		beginning of new sub-section
-					if (util::measure_indentation(line, NUM_OF_INDENTING_SPACES) > m_level_of_indention -1 || line.back() == ':' || line.front() == '-') {
-
-						m_file_content << line << "\n";
-						continue;
-					}
-
-					std::string key, value;
-					extract_key_value(key, value, line);
-					m_key_value_pares[key] = value;
-				}
-
-				if (found_section)
-					break;
-			}
-
-			if (found_section)
-				sub_section_function(*this);
-
-			m_key_value_pares = key_value_pares_buffer;
-			m_file_content << file_content_buffer.str();
-		}
-
-		m_level_of_indention--;
-		return *this;
 	}
 
 }

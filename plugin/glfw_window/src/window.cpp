@@ -1,5 +1,5 @@
 
-#include "util/pch.h"
+#include <util/pch.h>
 
 // #include <stb_image.h>
 #include <GLFW/glfw3.h>
@@ -215,15 +215,20 @@ namespace GLT::glfw_platform {
 
 	void window::bind_event_callbacks() {
 
+		IGNORE_UNUSED_PARAMETER_START
+
 		glfwSetWindowRefreshCallback(m_native_window, [](GLFWwindow* window) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			window_refresh_event event;
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetWindowSizeCallback(m_native_window, [](GLFWwindow* window, int width, int height) {
+
 			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
 			if (data.size_state == GLT::platform::window_size_state::windowed) {
+
 				data.width = static_cast<u32>(width);
 				data.height = static_cast<u32>(height);
 			}
@@ -231,103 +236,120 @@ namespace GLT::glfw_platform {
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetFramebufferSizeCallback(m_native_window, [](GLFWwindow* window, int width, int height) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			window_framebuffer_resize_event event(static_cast<u32>(width), static_cast<u32>(height));
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetWindowFocusCallback(m_native_window, [](GLFWwindow* window, int focused) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			window_focus_event event(focused == GLFW_TRUE);
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetWindowCloseCallback(m_native_window, [](GLFWwindow* window) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			window_close_event event;
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetWindowPosCallback(m_native_window, [](GLFWwindow* window, int x, int y) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			window_move_event event(x, y);
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetWindowIconifyCallback(m_native_window, [](GLFWwindow* window, int iconified) {
+
 			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
 			window_iconify_event event(iconified == GLFW_TRUE);
 			GLT::event_bus::post(event);
 			data.size_state = iconified ? GLT::platform::window_size_state::minimized : GLT::platform::window_size_state::windowed;
 		});
 
+
 		glfwSetWindowMaximizeCallback(m_native_window, [](GLFWwindow* window, int maximized) {
+
 			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
 			window_maximize_event event(maximized == GLFW_TRUE);
 			GLT::event_bus::post(event);
 			data.size_state = maximized ? GLT::platform::window_size_state::fullscreen_windowed : GLT::platform::window_size_state::windowed;
 		});
 
+
 		glfwSetWindowContentScaleCallback(m_native_window, [](GLFWwindow* window, float xscale, float yscale) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			window_content_scale_event event(xscale, yscale);
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetDropCallback(m_native_window, [](GLFWwindow* window, int count, const char** paths) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			std::vector<std::string> path_list;
-			for (int i = 0; i < count; ++i) {
+			for (int i = 0; i < count; ++i)
 				path_list.emplace_back(paths[i]);
-			}
+			
 			window_drop_event event(path_list);
 			GLT::event_bus::post(event);
 		});
 
-		// Input Events
 
 		glfwSetKeyCallback(m_native_window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			GLT::key_event event(static_cast<GLT::key_code>(key), static_cast<GLT::key_state>(action), mods);
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetCharCallback(m_native_window, [](GLFWwindow* window, unsigned int codepoint) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			char_event event(codepoint);
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetCharModsCallback(m_native_window, [](GLFWwindow* window, unsigned int codepoint, int mods) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			char_event event(codepoint, mods);
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetMouseButtonCallback(m_native_window, [](GLFWwindow* window, int button, int action, int mods) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			mouse_event event(static_cast<GLT::key_code>(button), static_cast<GLT::key_state>(action));
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetCursorPosCallback(m_native_window, [](GLFWwindow* window, double x_pos, double y_pos) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			mouse_event event(mouse_event::action_type::move, glm::vec2(static_cast<f32>(x_pos), static_cast<f32>(y_pos)));
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetCursorEnterCallback(m_native_window, [](GLFWwindow* window, int entered) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			mouse_event event(entered == GLFW_TRUE);
 			GLT::event_bus::post(event);
 		});
 
+
 		glfwSetScrollCallback(m_native_window, [](GLFWwindow* window, double x_offset, double y_offset) {
-			GLT::platform::window_attributes& data = *(GLT::platform::window_attributes*)glfwGetWindowUserPointer(window);
+
 			mouse_event event(mouse_event::action_type::scroll, glm::vec2(static_cast<f32>(x_offset), static_cast<f32>(y_offset)));
 			GLT::event_bus::post(event);
 		});
+
+		IGNORE_UNUSED_PARAMETER_STOP
 	}
 
 }

@@ -13,6 +13,7 @@
 #include <iomanip>
 
 #include <util/system.h>
+#include <util/io/vfs.h>
 
 #include "logger.h"
 
@@ -127,11 +128,11 @@ namespace GLT::logger_plugin {
         s_format_current = format;
         s_format_prev = format;
         s_write_log_to_console = log_to_console;
-        s_main_log_dir = std::filesystem::absolute(log_dir);
+        s_main_log_dir = log_dir;
         s_main_log_file_path = s_main_log_dir / main_log_file_name;
 
-        if (!std::filesystem::is_directory(s_main_log_dir))
-            if (!std::filesystem::create_directories(s_main_log_dir)) {
+        if (!GLT::vfs::is_directory(s_main_log_dir))
+            if (!GLT::vfs::create_directories(s_main_log_dir)) {
                 std::cerr << "Failed to create the directory for log files" << std::endl;
                 return false;
             }
