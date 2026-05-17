@@ -26,37 +26,35 @@ namespace GLT {
 
     application::application(int argc, char* argv[]) {
 
-        plugin_manager::load_plugins(plugin_manager::load_phase::post_platform_file_init);
+        plugin_manager::load_plugins(plugin_manager::load_phase::pre_application);
         mp_window = plugin_manager::get_plugin_ref<platform::i_window_plugin>(plugin_manager::targeted_interface::window);
-        ASSERT(mp_window, "", "No window plugin loaded - cannot create application window.")
+        platform::window_attributes attributes {
+            .title      = "Gluttony",               // TODO: load from config, load project name prefixed with Gluttony
+            .width      = 1920,                     // TODO: load from config
+            .height     = 1080,                     // TODO: load from config
+        };
+        mp_window->create(attributes);
 
-        platform::window_attributes attrs;
-        attrs.title = "Gluttony";
-        attrs.width = 1920;
-        attrs.height = 1080;
-        attrs.vsync = false;
-        mp_window->create(attrs);       // actually create the native window
+        plugin_manager::load_plugins(plugin_manager::load_phase::post_window);
 
-        plugin_manager::load_plugins(plugin_manager::load_phase::post_window_creation);
-        
-
-        set_target_fps(30);             // DEBUG-ONLY - TODO: load from config
-        const auto unused_handle = event_bus::subscribe<window_close_event>(
-            [this](window_close_event& event) { m_running = false; });
+        set_target_fps(30);         // DEBUG-ONLY - TODO: load from config
+        const auto unused_handle = event_bus::subscribe<window_close_event>([this](window_close_event& event) {
+            m_running = false;
+        });
 
         LOG_INIT
-        plugin_manager::load_plugins(plugin_manager::load_phase::post_engine_init);
+        plugin_manager::load_plugins(plugin_manager::load_phase::post_application_run);
     }
 
 
     application::~application() {
 
-        plugin_manager::load_plugins(plugin_manager::load_phase::pre_shutdown);
+        plugin_manager::load_plugins(plugin_manager::load_phase::pre_application_shutdown);
 
         mp_window->destroy();
         mp_window.reset();
 
-        plugin_manager::load_plugins(plugin_manager::load_phase::post_shutdown);
+        plugin_manager::load_plugins(plugin_manager::load_phase::post_application_shutdown);
         LOG_SHUTDOWN
     }
 
@@ -64,7 +62,9 @@ namespace GLT {
 
     void application::run() {
 
+        plugin_manager::load_plugins(plugin_manager::load_phase::pre_application_run);
         mp_window->show(true);       // show window now
+
         while (m_running) {
 
             mp_window->poll_events();        // update internal state
@@ -73,6 +73,7 @@ namespace GLT {
             
             m_fps_controller.limit();
         }
+        plugin_manager::load_plugins(plugin_manager::load_phase::post_application_run);
     }
 
 

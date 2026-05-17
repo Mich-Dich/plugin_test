@@ -94,11 +94,3 @@ It’ll start up, discover any plugins in the `plugin/` directory, load the ones
 If you find a bug or want to add something, open an issue or a PR – I can’t promise prompt responses, but I’ll be thrilled that someone else looked at the code.
 
 *Thanks for stopping by. Now go build something equally half‑baked.*
-
-
-
-
-<!-- TODO: 
-- make plugin config independent of core (logger should be in release while core/renderer could be in debug)
-  
--->

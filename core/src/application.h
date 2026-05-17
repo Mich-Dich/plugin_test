@@ -38,10 +38,10 @@ namespace GLT {
 
     private:
         
-        version                                             m_version{};
-        ref<GLT::platform::i_window_plugin>                 mp_window{};
-        bool                                                m_running = true;
-        util::interval_controller                           m_fps_controller{};
+        version                                         m_version{};
+        ref<GLT::platform::i_window_plugin>             mp_window{};
+        bool                                            m_running = true;
+        util::interval_controller                       m_fps_controller{};
 
     };
 

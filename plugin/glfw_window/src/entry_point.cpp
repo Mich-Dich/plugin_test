@@ -18,24 +18,22 @@ namespace GLT::glfw_platform {
     // STATIC VARIABLES ================================================================================================
 
 
-    static const char*                              needed_plugins_names[] = { 
-        
+    static const char* dependencies_names[] = {
+
         nullptr
     };
-
-    static plugin_manager::targeted_interface       needed_plugins_interfaces[] = {
+    static GLT::plugin_manager::targeted_interface dependencies_interfaces[] = {
         
-        plugin_manager::targeted_interface::logger 
+        GLT::plugin_manager::targeted_interface::none,
     };
-
-    static plugin_manager::plugin_descriptor descriptor = {
-        .name                                   = GLT_MODULE_NAME,
-        .phase                                  = plugin_manager::load_phase::post_platform_file_init,
-        .target                                 = plugin_manager::targeted_interface::window,
-        .dependency_names_count                 = ARRAY_SIZE(needed_plugins_names),
-        .dependency_names                       = needed_plugins_names,
-        .dependency_interface_count             = ARRAY_SIZE(needed_plugins_interfaces),
-        .dependency_interfaces                  = needed_plugins_interfaces,
+    static GLT::plugin_manager::plugin_descriptor descriptor = {
+        .name                               = GLT_MODULE_NAME,
+        .phase                              = GLT::plugin_manager::load_phase::pre_application,
+        .target                             = GLT::plugin_manager::targeted_interface::window,
+        .dependency_names_count             = ARRAY_SIZE(dependencies_names),
+        .dependency_names                   = dependencies_names,
+        .dependency_interface_count         = ARRAY_SIZE(dependencies_interfaces),
+        .dependency_interfaces              = dependencies_interfaces,
     };
 
     // FUNCTION IMPLEMENTATION =========================================================================================
@@ -64,7 +62,9 @@ namespace GLT::glfw_platform {
         }
 
         
-        void destroy() { mp_window.reset(); }
+        void destroy() {
+            mp_window.reset();
+        }
 
         // --- queries ---
         bool should_close() const { 
@@ -114,8 +114,7 @@ namespace GLT::glfw_platform {
         // --- modifiers ---
         void show(bool visible) override {
 
-            if (mp_window)
-                mp_window->show_window(visible);
+            if (mp_window) mp_window->show_window(visible);
         }
 
 

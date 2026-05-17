@@ -19,24 +19,24 @@ namespace GLT::logger_plugin {
 
     // STATIC VARIABLES ================================================================================================
 
-    static const char*                              needed_plugins_names[] = { 
+    static const char*                              dependencies_names[] = {
         
         nullptr
     };
 
-    static plugin_manager::targeted_interface       needed_plugins_interfaces[] = {
-        
+    static plugin_manager::targeted_interface       dependencies_interfaces[] = {
+
         plugin_manager::targeted_interface::virtual_file_system 
     };
 
-    static plugin_manager::plugin_descriptor descriptor = {
-        .name                                   = GLT_MODULE_NAME,
-        .phase                                  = plugin_manager::load_phase::earliest_possible,
-        .target                                 = plugin_manager::targeted_interface::logger,
-        .dependency_names_count                 = ARRAY_SIZE(needed_plugins_names),
-        .dependency_names                       = needed_plugins_names,
-        .dependency_interface_count             = ARRAY_SIZE(needed_plugins_interfaces),
-        .dependency_interfaces                  = needed_plugins_interfaces,
+    static plugin_manager::plugin_descriptor        descriptor = {
+        .name                           = GLT_MODULE_NAME,
+        .phase                          = plugin_manager::load_phase::earliest_possible,
+        .target                         = plugin_manager::targeted_interface::logger,
+        .dependency_names_count         = ARRAY_SIZE(dependencies_names),
+        .dependency_names               = dependencies_names,
+        .dependency_interface_count     = ARRAY_SIZE(dependencies_interfaces),
+        .dependency_interfaces          = dependencies_interfaces,
     };
 
     // FUNCTION IMPLEMENTATION =========================================================================================

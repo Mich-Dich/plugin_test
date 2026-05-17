@@ -14,8 +14,8 @@
             "MIMode": "gdb",
             "setupCommands": [
                 {
-                    "description": "Disable setting controlling terminal",
-                    "text": "set startup-with-shell off",
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
                     "ignoreFailures": true
                 }
             ],

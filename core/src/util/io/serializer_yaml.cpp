@@ -24,7 +24,8 @@ namespace GLT::serializer {
 
 		// ASSERT(std::filesystem::is_regular_file(filename), "", "Provided filepath is not a file [" << filename.generic_string() << "]");
 		std::filesystem::path path = filename.parent_path();
-		ASSERT(vfs::create_directory(path), "", "Could not create file-path");
+
+		ASSERT(vfs::create_directories(path), "", "Could not create file-path");
 
 		// make shure the file exists
 		if (!std::filesystem::exists(m_filename)) {

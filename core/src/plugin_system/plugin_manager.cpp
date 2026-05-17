@@ -68,7 +68,8 @@ namespace GLT::plugin_manager {
         void*                                   module_handle = nullptr;
         std::shared_ptr<i_plugin>               instance;   // uses custom deleter
         load_phase                              phase;
-        std::vector<std::string>                dependencies;
+        std::vector<std::string>                dependencies_names;
+        std::vector<targeted_interface>         dependencies_interfaces;
     };
 
 
@@ -78,8 +79,8 @@ namespace GLT::plugin_manager {
         std::string                                             name;
         load_phase                                              phase;
         targeted_interface                                      target{};               // is a [u16]
-        std::vector<std::string>                                dependencies;
-        std::vector<targeted_interface>                         interface_dependencies;
+        std::vector<std::string>                                dependencies_names;
+        std::vector<targeted_interface>                         dependencies_interfaces;
     };
 
 
@@ -182,7 +183,8 @@ namespace GLT::plugin_manager {
     static plugin_load_error load_single(const discovered_info& info) {
 
         // Check if already loaded (by name).
-        auto it = std::find_if(s_loaded_plugins.begin(), s_loaded_plugins.end(), [&](const plugin_handle& h) { return h.name == info.name; });
+        auto it = std::find_if(s_loaded_plugins.begin(), s_loaded_plugins.end(),
+            [&](const plugin_handle& h) { return h.name == info.name; });
         if (it != s_loaded_plugins.end()) {
             return plugin_load_error::already_loaded;
         }
@@ -223,12 +225,13 @@ namespace GLT::plugin_manager {
         auto instance = std::shared_ptr<i_plugin>(raw_instance, deleter{ destroy, handle });
         instance->on_load();                                            // Call the startup hook.
         s_loaded_plugins.push_back(plugin_handle{                       // Store the handle.
-            info.name,
-            info.path,
-            handle,
-            instance,
-            info.phase,
-            info.dependencies
+            .name                       = info.name,
+            .path                       = info.path,
+            .module_handle              = handle,
+            .instance                   = instance,
+            .phase                      = info.phase,
+            .dependencies_names         = info.dependencies_names,
+            .dependencies_interfaces    = info.dependencies_interfaces,
         });
 
         return plugin_load_error::none;
@@ -238,11 +241,11 @@ namespace GLT::plugin_manager {
     // Checks if all dependencies (by name) are already loaded.
     static bool dependencies_satisfied(const discovered_info& info) {
 
-        // check name dependencies
-        for (const auto& dep : info.dependencies) {
+        // Check name dependencies
+        for (const auto& dep_name : info.dependencies_names) {
             bool found = false;
             for (const auto& loaded : s_loaded_plugins) {
-                if (loaded.name == dep) {
+                if (loaded.name == dep_name) {
                     found = true;
                     break;
                 }
@@ -250,24 +253,25 @@ namespace GLT::plugin_manager {
             if (!found) return false;
         }
 
-        // check interface dependencies
-        for (auto iface_dep : info.interface_dependencies) {
+        // Check interface dependencies
+        for (auto iface_dep : info.dependencies_interfaces) {
 
-            // Is there any loaded plugin that provides this interface?
+            if (iface_dep == targeted_interface::none)
+                continue;
+
             auto it = s_plugin_names_per_target_interface.find(iface_dep);
             if (it == s_plugin_names_per_target_interface.end())
-                return false;   // no plugin configured for this interface at all
+                return false;   // no plugin configured for this interface
+            const std::string& required_plugin_name = it->second;
 
-            const std::string& provider_name = it->second;
-            bool provider_loaded = false;
+            bool found = false;
             for (const auto& loaded : s_loaded_plugins) {
-                if (loaded.name == provider_name) {
-                    provider_loaded = true;
+                if (loaded.name == required_plugin_name) {
+                    found = true;
                     break;
                 }
             }
-            if (!provider_loaded)
-                return false;
+            if (!found) return false;
         }
 
         return true;
@@ -359,17 +363,19 @@ namespace GLT::plugin_manager {
                 .phase  = desc->phase,
                 .target = iface,
             };
-            
-            info.dependencies.reserve(desc->dependency_names_count);                          // Name dependencies
+
+            // Name dependencies
+            info.dependencies_names.reserve(desc->dependency_names_count);
             for (int i = 0; i < desc->dependency_names_count; ++i) {
                 if (desc->dependency_names && desc->dependency_names[i])
-                    info.dependencies.emplace_back(desc->dependency_names[i]);
+                    info.dependencies_names.emplace_back(desc->dependency_names[i]);
             }
 
-            info.interface_dependencies.reserve(desc->dependency_interface_count);      // Interface dependencies
+            // Interface dependencies
+            info.dependencies_interfaces.reserve(desc->dependency_interface_count);
             for (int i = 0; i < desc->dependency_interface_count; ++i) {
                 if (desc->dependency_interfaces)
-                    info.interface_dependencies.push_back(desc->dependency_interfaces[i]);
+                    info.dependencies_interfaces.push_back(desc->dependency_interfaces[i]);
             }
 
             s_discovered.push_back(std::move(info));
@@ -380,12 +386,16 @@ namespace GLT::plugin_manager {
 
     void load_plugins(const load_phase currentPhase) {
 
-        if (s_shutdown) return;
+        if (s_shutdown)
+            return;
 
         // Filter discovered plugins by phase and not yet loaded.
         std::vector<discovered_info> pending;
         for (const auto& plugin : s_discovered) {
-            if (plugin.phase != currentPhase) continue;
+
+            if (plugin.phase != currentPhase)
+                continue;
+                
             // Check if already loaded (shouldn't be, but safe).
             if (std::any_of(s_loaded_plugins.begin(), s_loaded_plugins.end(),
                     [&](const plugin_handle& h) { return h.name == plugin.name; })) {
@@ -406,7 +416,7 @@ namespace GLT::plugin_manager {
 
                         case plugin_load_error::none: {
                             it = pending.erase(it);
-                            progress = true;                // we made progress, keep trying others
+                            progress = true;       // we made progress, keep trying others
                             break;
                         }
                         case plugin_load_error::failed_to_load:                             [[fallthrough]];
@@ -421,7 +431,7 @@ namespace GLT::plugin_manager {
                             it = pending.erase(it);
                             break;
                         }
-                        default: break;
+                        default:                                                            break;
                     }
                 } else {
                     ++it;

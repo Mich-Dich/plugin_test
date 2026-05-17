@@ -33,27 +33,34 @@ namespace GLT::vfs {
 
 
     [[nodiscard]] bool default_exists(const std::filesystem::path& path) {
+
         return std::filesystem::exists(path);
     }
 
 
     [[nodiscard]] bool default_is_directory(const std::filesystem::path& path) {
+
         return std::filesystem::is_directory(path);
     }
 
 
     [[nodiscard]] bool default_is_regular_file(const std::filesystem::path& path) {
+
         return std::filesystem::is_regular_file(path);
     }
 
 
     bool default_create_directory(const std::filesystem::path& path) {
+
         return std::filesystem::create_directory(path);
     }
 
 
     bool default_create_directories(const std::filesystem::path& path) {
-        return std::filesystem::create_directories(path);
+
+		std::error_code error{};
+        std::filesystem::create_directories(path, error);
+        return !error;
     }
 
 
